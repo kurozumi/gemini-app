@@ -74,11 +74,13 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     }
   }, [currentTrack]);
 
-  // Initialize audio element
+  // Setup audio element listeners
   useEffect(() => {
-    audioRef.current = new Audio();
-    
+    if (!audioRef.current) {
+      audioRef.current = new Audio();
+    }
     const audio = audioRef.current;
+    if (!audio) return;
 
     const updateProgress = () => {
       setProgress(audio.currentTime);
