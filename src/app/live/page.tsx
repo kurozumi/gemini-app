@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, Suspense } from 'react';
 import { 
   LiveKitRoom, 
   AudioConference, 
@@ -8,27 +8,49 @@ import {
   ControlBar
 } from '@livekit/components-react';
 import '@livekit/components-styles';
+import { useSearchParams } from 'next/navigation';
+import { supabase } from '@/lib/supabase/client';
 
 import Logger from '@/lib/logger';
 
-export default function LivePage() {
+function LivePageContent() {
+  const searchParams = useSearchParams();
   const [token, setToken] = useState<string | null>(null);
   const [url, setUrl] = useState<string | null>(null);
   const [isBroadcaster, setIsBroadcaster] = useState(false);
   const [isAudioEnabled, setIsAudioEnabled] = useState(false);
+  const [currentRoomId, setCurrentRoomId] = useState<string | null>(null);
 
-  // ステート管理の簡略化
+  // ステート管理
   const [roomName, setRoomName] = useState('main-room');
   const [isConnecting, setIsConnecting] = useState(false);
 
-  // 保存された接続情報のロード
+  // URLパラメータや保存された情報からルーム名を初期化
   useEffect(() => {
-    if (typeof window !== 'undefined') {
-      const storedRoom = localStorage.getItem('livekit_room_name');
+    const roomParam = searchParams.get('room');
+    if (roomParam) {
       // eslint-disable-next-line react-hooks/set-state-in-effect
-      if (storedRoom) setRoomName(storedRoom);
+      setRoomName(roomParam);
+    } else if (typeof window !== 'undefined') {
+      const storedRoom = localStorage.getItem('livekit_room_name');
+      if (storedRoom) {
+        // eslint-disable-next-line react-hooks/set-state-in-effect
+        setRoomName(storedRoom);
+      }
     }
-  }, []);
+  }, [searchParams]);
+
+  // 配信終了時のクリーンアップ
+  const handleDisconnected = useCallback(async () => {
+    if (isBroadcaster && currentRoomId && supabase) {
+      Logger.info('Broadcaster leaving, removing room from Supabase', { roomId: currentRoomId });
+      await supabase.from('rooms').delete().eq('id', currentRoomId);
+    }
+    setToken(null);
+    setUrl(null);
+    setCurrentRoomId(null);
+    setIsBroadcaster(false);
+  }, [isBroadcaster, currentRoomId]);
 
   const handleConnect = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -50,6 +72,18 @@ export default function LivePage() {
 
       if (data.error) {
         throw new Error(data.error);
+      }
+
+      // 配信者の場合のみSupabaseにルームを登録
+      if (role === 'host' && supabase) {
+        const { data: roomData, error: roomError } = await supabase
+          .from('rooms')
+          .insert([{ name: inputRoom, host_name: username }])
+          .select()
+          .single();
+
+        if (roomError) throw roomError;
+        setCurrentRoomId(roomData.id);
       }
 
       setToken(data.token);
@@ -138,11 +172,7 @@ export default function LivePage() {
         audio={isBroadcaster}
         token={token}
         serverUrl={url}
-        onDisconnected={() => {
-          Logger.info('Disconnected from LiveKit');
-          setToken(null);
-          setUrl(null);
-        }}
+        onDisconnected={handleDisconnected}
         onConnected={() => {
           Logger.info('Successfully connected to LiveKit');
         }}
@@ -195,5 +225,13 @@ export default function LivePage() {
         </div>
       </LiveKitRoom>
     </div>
+  );
+}
+
+export default function LivePage() {
+  return (
+    <Suspense fallback={<div>読み込み中...</div>}>
+      <LivePageContent />
+    </Suspense>
   );
 }
