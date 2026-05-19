@@ -5,10 +5,8 @@ import {
   LiveKitRoom, 
   AudioConference, 
   RoomAudioRenderer, 
-  ControlBar,
-  useTracks
+  ControlBar
 } from '@livekit/components-react';
-import { Track } from 'livekit-client';
 import '@livekit/components-styles';
 
 import Logger from '@/lib/logger';
@@ -17,6 +15,7 @@ export default function LivePage() {
   const [token, setToken] = useState<string | null>(null);
   const [url, setUrl] = useState<string | null>(null);
   const [isBroadcaster, setIsBroadcaster] = useState(false);
+  const [isAudioEnabled, setIsAudioEnabled] = useState(false);
 
   // 実際にはサーバーから取得しますが、プロトタイプとして入力フォームを用意します
   const handleConnect = (e: React.FormEvent<HTMLFormElement>) => {
@@ -37,9 +36,27 @@ export default function LivePage() {
       setToken(inputToken);
       setUrl(inputUrl);
       setIsBroadcaster(role === 'host');
-    } catch (err: any) {
-      Logger.error('Form submission failed', { error: err.message });
-      alert('エラーが発生しました: ' + err.message);
+      setIsAudioEnabled(false); // Reset on new connection
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : String(err);
+      Logger.error('Form submission failed', { error: message });
+      alert('エラーが発生しました: ' + message);
+    }
+  };
+
+  const handleStartAudio = async () => {
+    try {
+      // ユーザーの操作でオーディオコンテキストをアクティブにする
+      const AudioContext = (window as any).AudioContext || (window as any).webkitAudioContext;
+      if (AudioContext) {
+        const ctx = new AudioContext();
+        await ctx.resume();
+        Logger.info('AudioContext resumed via user gesture');
+      }
+      setIsAudioEnabled(true);
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : String(err);
+      Logger.error('Failed to start audio context', { error: message });
     }
   };
 
@@ -106,12 +123,34 @@ export default function LivePage() {
           <p style={{ color: 'var(--text-muted)', marginBottom: '1.5rem', fontSize: '0.9rem' }}>
             {isBroadcaster ? 'あなたの声がリスナーに届いています' : '配信者の声を楽しんでいます'}
           </p>
-          
-          <div style={{ width: '100%', maxWidth: '500px', marginBottom: '1.5rem' }}>
-            <AudioConference />
-          </div>
-          
-          <RoomAudioRenderer />
+
+          {!isBroadcaster && !isAudioEnabled ? (
+            <button 
+              onClick={handleStartAudio}
+              style={{ 
+                padding: '1.5rem 2.5rem', 
+                borderRadius: '50px', 
+                backgroundColor: 'var(--primary)', 
+                color: 'white', 
+                fontWeight: 'bold', 
+                fontSize: '1.2rem',
+                border: 'none',
+                boxShadow: '0 4px 15px rgba(0,0,0,0.3)',
+                cursor: 'pointer',
+                marginBottom: '2rem'
+              }}
+            >
+              🔊 ライブを聴く
+            </button>
+          ) : (
+            <>
+              <div style={{ width: '100%', maxWidth: '500px', marginBottom: '1.5rem' }}>
+                <AudioConference />
+              </div>
+              
+              <RoomAudioRenderer />
+            </>
+          )}
           
           <div style={{ position: 'sticky', bottom: '0', padding: '1rem', width: '100%', display: 'flex', justifyContent: 'center' }}>
             <ControlBar variation="minimal" controls={{ leave: true, microphone: isBroadcaster, chat: false }} />
