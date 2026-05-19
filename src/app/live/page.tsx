@@ -82,7 +82,14 @@ function LivePageContent() {
           .select()
           .single();
 
-        if (roomError) throw roomError;
+        if (roomError) {
+          Logger.error('Supabase room insertion failed', { 
+            message: roomError.message, 
+            details: roomError.details, 
+            hint: roomError.hint 
+          });
+          throw new Error(`ルームの作成に失敗しました: ${roomError.message}`);
+        }
         setCurrentRoomId(roomData.id);
       }
 
@@ -91,9 +98,15 @@ function LivePageContent() {
       setIsBroadcaster(role === 'host');
       setIsAudioEnabled(false);
     } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : String(err);
-      Logger.error('Connection failed', { error: message });
-      alert('接続に失敗しました。環境設定を確認してください。');
+      let errorMessage = '不明なエラーが発生しました';
+      if (err instanceof Error) {
+        errorMessage = err.message;
+      } else if (typeof err === 'object' && err !== null) {
+        errorMessage = JSON.stringify(err);
+      }
+      
+      Logger.error('Connection failed', { error: errorMessage });
+      alert(`接続に失敗しました: ${errorMessage}`);
     } finally {
       setIsConnecting(false);
     }
