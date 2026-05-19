@@ -34,7 +34,7 @@
    - **anon public:** 公開用APIキー
 3. **SQL Editor** を開き、以下のSQLを実行してテーブルを作成します。
    ```sql
-   -- 配信ルームを管理するテーブルを作成
+   -- 1. 配信ルームを管理するテーブルを作成
    create table rooms (
      id uuid default gen_random_uuid() primary key,
      name text not null,
@@ -42,11 +42,15 @@
      created_at timestamp with time zone default now()
    );
 
-   -- リアルタイム機能を有効化
+   -- 2. リアルタイム機能を有効化
    alter publication supabase_realtime add table rooms;
 
-   -- 匿名ユーザーの読み書きを許可 (RLSの無効化)
+   -- 3. 匿名ユーザーの読み書きを許可 (RLSの無効化と権限付与)
    alter table rooms disable row level security;
+   grant all on table rooms to anon, authenticated, service_role;
+
+   -- 4. キャッシュを強制リセット（構造変更を即座に反映）
+   notify pgrst, 'reload schema';
    ```
 
 ### 3. Vercel への環境変数設定
@@ -65,13 +69,25 @@ Vercelのプロジェクト設定（Settings > Environment Variables）に以下
 
 ## トラブルシューティング（よくある落とし穴）
 
+### Q. 「Could not find the 'host_name' (または 'name') column」と表示される
+**A. Supabaseのキャッシュリセットが必要です。**
+SQL Editor で `notify pgrst, 'reload schema';` を実行してください。これにより Supabase の API が最新のテーブル構造を認識します。
+
+### Q. 「new row violates row-level security policy」と表示される
+**A. 権限設定が不足しています。**
+SQL Editor で以下の 2 行を実行してください：
+```sql
+alter table rooms disable row level security;
+grant all on table rooms to anon, authenticated, service_role;
+```
+
 ### Q. 環境変数を設定したのに接続できない
 **A. 再デプロイ（Redeploy）が必要です。**
 Vercelでは環境変数を追加しただけでは実行中のアプリに反映されません。`Deployments` タブから最新のビルドの `...` メニューを開き、**Redeploy** を実行してください。
 
 ### Q. トップページに配信中リストが表示されない
-**A. Supabaseのセキュリティ設定（RLS）を確認してください。**
-デフォルトでは外部からのアクセスが禁止されています。SQL Editorで `alter table rooms disable row level security;` を実行したか確認してください。また、実際に「配信者」としてライブを開始している間のみリストに表示されます。
+**A. 実際に「配信者」としてライブを開始しているか確認してください。**
+現在の仕様では、誰かが「配信者」として接続している間だけリストに表示されます。また、ブラウザのコンソール（F12）にエラーが出ていないか確認してください。
 
 ### Q. iPhoneで音が聞こえない
 **A. ユーザー操作（タップ）が必要です。**
