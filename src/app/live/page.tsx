@@ -17,56 +17,51 @@ export default function LivePage() {
   const [isBroadcaster, setIsBroadcaster] = useState(false);
   const [isAudioEnabled, setIsAudioEnabled] = useState(false);
 
-  // 保存された接続情報を管理するステート
-  const [savedUrl, setSavedUrl] = useState('');
-  const [savedToken, setSavedToken] = useState('');
+  // ステート管理の簡略化
+  const [roomName, setRoomName] = useState('main-room');
+  const [isConnecting, setIsConnecting] = useState(false);
 
-  // マウント時にlocalStorageからロード
+  // 保存された接続情報のロード
   useEffect(() => {
     if (typeof window !== 'undefined') {
-      const storedUrl = localStorage.getItem('livekit_url');
-      const storedToken = localStorage.getItem('livekit_token');
-      
-      // setStateを副作用として実行
-      if (storedUrl) {
-        // eslint-disable-next-line react-hooks/set-state-in-effect
-        setSavedUrl(storedUrl);
-      }
-      if (storedToken) {
-        // eslint-disable-next-line react-hooks/set-state-in-effect
-        setSavedToken(storedToken);
-      }
+      const storedRoom = localStorage.getItem('livekit_room_name');
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      if (storedRoom) setRoomName(storedRoom);
     }
   }, []);
 
-  // 実際にはサーバーから取得しますが、プロトタイプとして入力フォームを用意します
-  const handleConnect = (e: React.FormEvent<HTMLFormElement>) => {
-    try {
-      e.preventDefault();
-      const formData = new FormData(e.currentTarget);
-      const inputToken = formData.get('token') as string;
-      const inputUrl = formData.get('url') as string;
-      const role = formData.get('role') as string;
+  const handleConnect = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    setIsConnecting(true);
 
-      if (!inputToken || !inputUrl) {
-        alert('URLとトークンを入力してください');
-        return;
+    try {
+      const formData = new FormData(e.currentTarget);
+      const inputRoom = (formData.get('room') as string) || 'main-room';
+      const role = formData.get('role') as string;
+      const username = `user-${Math.floor(Math.random() * 10000)}`;
+
+      // ルーム名を保存
+      localStorage.setItem('livekit_room_name', inputRoom);
+
+      Logger.info('Fetching automated token', { room: inputRoom, role });
+      
+      const resp = await fetch(`/api/livekit/token?room=${inputRoom}&username=${username}&role=${role}`);
+      const data = await resp.json();
+
+      if (data.error) {
+        throw new Error(data.error);
       }
 
-      // 接続情報を保存
-      localStorage.setItem('livekit_url', inputUrl);
-      localStorage.setItem('livekit_token', inputToken);
-
-      Logger.info('Attempting LiveKit connection', { url: inputUrl, role });
-      
-      setToken(inputToken);
-      setUrl(inputUrl);
+      setToken(data.token);
+      setUrl(data.url);
       setIsBroadcaster(role === 'host');
-      setIsAudioEnabled(false); // Reset on new connection
+      setIsAudioEnabled(false);
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : String(err);
-      Logger.error('Form submission failed', { error: message });
-      alert('エラーが発生しました: ' + message);
+      Logger.error('Connection failed', { error: message });
+      alert('接続に失敗しました。環境設定を確認してください。');
+    } finally {
+      setIsConnecting(false);
     }
   };
 
@@ -90,31 +85,20 @@ export default function LivePage() {
   };
 
   if (!token || !url) {
-    // ... (rest of the form remains same)
     return (
       <div style={{ padding: '2rem 0', maxWidth: '400px', margin: '0 auto' }}>
-        <h2 style={{ marginBottom: '1.5rem', textAlign: 'center' }}>ライブ配信プロトタイプ</h2>
+        <h2 style={{ marginBottom: '1.5rem', textAlign: 'center' }}>ライブ配信</h2>
         <div style={{ backgroundColor: 'var(--card-bg)', padding: '1.5rem', borderRadius: '16px', border: '1px solid var(--border)' }}>
           <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', marginBottom: '1.5rem' }}>
-            LiveKit Cloud等のダッシュボードから発行したURLとトークンを入力して、接続テストを行えます。
+            ルーム名を入力して「接続する」を押すだけで、自動的に適切な権限で入室します。
           </p>
           <form onSubmit={handleConnect} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
             <div>
-              <label style={{ display: 'block', fontSize: '0.8rem', marginBottom: '4px' }}>WebSocket URL</label>
+              <label style={{ display: 'block', fontSize: '0.8rem', marginBottom: '4px' }}>ルーム名</label>
               <input 
-                name="url" 
-                defaultValue={savedUrl} 
-                placeholder="wss://..." 
-                required 
-                style={{ width: '100%', padding: '0.75rem', borderRadius: '8px', backgroundColor: 'var(--secondary)', border: '1px solid var(--border)', color: 'white' }} 
-              />
-            </div>
-            <div>
-              <label style={{ display: 'block', fontSize: '0.8rem', marginBottom: '4px' }}>Token</label>
-              <input 
-                name="token" 
-                defaultValue={savedToken} 
-                placeholder="eyJ..." 
+                name="room" 
+                defaultValue={roomName} 
+                placeholder="例: my-live-show" 
                 required 
                 style={{ width: '100%', padding: '0.75rem', borderRadius: '8px', backgroundColor: 'var(--secondary)', border: '1px solid var(--border)', color: 'white' }} 
               />
@@ -126,8 +110,20 @@ export default function LivePage() {
                 <option value="host">配信者（喋る）</option>
               </select>
             </div>
-            <button type="submit" style={{ marginTop: '1rem', padding: '1rem', borderRadius: '8px', backgroundColor: 'var(--primary)', color: 'white', fontWeight: 'bold' }}>
-              接続する
+            <button 
+              type="submit" 
+              disabled={isConnecting}
+              style={{ 
+                marginTop: '1rem', 
+                padding: '1rem', 
+                borderRadius: '8px', 
+                backgroundColor: isConnecting ? 'var(--secondary)' : 'var(--primary)', 
+                color: 'white', 
+                fontWeight: 'bold',
+                cursor: isConnecting ? 'not-allowed' : 'pointer'
+              }}
+            >
+              {isConnecting ? '接続中...' : 'ライブに参加する'}
             </button>
           </form>
         </div>
