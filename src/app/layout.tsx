@@ -35,8 +35,6 @@ export default function RootLayout({
                 <ul className="navList">
                   <li><a href="/">ホーム</a></li>
                   <li><a href="/live">ライブ</a></li>
-                  <li><a href="/search">探す</a></li>
-                  <li><a href="/favorites">お気に入り</a></li>
                 </ul>
               </nav>
             </div>
