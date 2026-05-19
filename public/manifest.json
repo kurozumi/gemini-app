@@ -1,7 +1,7 @@
 {
-  "name": "おやすみASMR",
-  "short_name": "おやすみ",
-  "description": "極上の添い寝ボイス配信PWA",
+  "name": "コエトバ - 声で、つながる",
+  "short_name": "コエトバ",
+  "description": "会員登録不要。匿名で誰でもすぐに音声配信や聴取ができるリアルタイム掲示板です。",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#0f172a",
