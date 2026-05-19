@@ -12,3 +12,24 @@
 - PR作成前に必ず `npm run build` と `npm run lint` で変更を確認すること。
 - コードの修正は「外科的（最小限かつ正確）」に行うこと。
 - Next.js と TypeScript のベストプラクティスに従うこと。
+
+## 外部サービスの設定
+### 1. LiveKit (音声配信)
+- `LIVEKIT_API_KEY`: APIキー
+- `LIVEKIT_API_SECRET`: APIシークレット
+- `NEXT_PUBLIC_LIVEKIT_URL`: Project URL (wss://...)
+
+### 2. Supabase (配信掲示板/リアルタイム管理)
+- `NEXT_PUBLIC_SUPABASE_URL`: プロジェクトURL
+- `NEXT_PUBLIC_SUPABASE_ANON_KEY`: Anon Key
+- **必要なテーブル設定**:
+  SQL Editor で以下のコマンドを実行してください：
+  ```sql
+  create table rooms (
+    id uuid default gen_random_uuid() primary key,
+    name text not null,
+    host_name text not null,
+    created_at timestamp with time zone default now()
+  );
+  alter publication supabase_realtime add table rooms;
+  ```
