@@ -1,6 +1,6 @@
 'use client';
 
-import React, { createContext, useContext, useState, useRef, useEffect } from 'react';
+import React, { createContext, useContext, useState, useRef, useEffect, useCallback } from 'react';
 import { Track } from './mockData';
 
 interface PlayerContextType {
@@ -25,6 +25,55 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
+  const togglePlay = useCallback(async () => {
+    if (!audioRef.current || !currentTrack) return;
+
+    if (isPlaying) {
+      console.log("Pausing audio");
+      audioRef.current.pause();
+      setIsPlaying(false);
+    } else {
+      try {
+        console.log("Resuming audio");
+        await audioRef.current.play();
+        setIsPlaying(true);
+      } catch (e: unknown) {
+        if (e instanceof Error && e.name !== 'AbortError') {
+          console.error("Playback failed (togglePlay):", e.name, e.message);
+        }
+      }
+    }
+  }, [isPlaying, currentTrack]);
+
+  const playTrack = useCallback(async (track: Track, sample: boolean = false) => {
+    if (!audioRef.current) return;
+
+    const url = sample ? track.sampleUrl : track.audioUrl;
+    setIsSample(sample);
+
+    console.log(`Attempting to play: ${track.title} (${sample ? 'sample' : 'full'})`);
+    console.log(`URL: ${url}`);
+
+    if (currentTrack?.id !== track.id || audioRef.current.src !== url) {
+      setCurrentTrack(track);
+      audioRef.current.src = url;
+      audioRef.current.load();
+    }
+    
+    try {
+      await audioRef.current.play();
+      console.log("Playback started successfully");
+      setIsPlaying(true);
+    } catch (e: unknown) {
+      if (e instanceof Error && e.name !== 'AbortError') {
+        console.error("Playback failed (playTrack):", e.name, e.message);
+        if (e.name === 'NotAllowedError') {
+          console.error("Autoplay restricted. User interaction required.");
+        }
+      }
+    }
+  }, [currentTrack]);
+
   // Initialize audio element
   useEffect(() => {
     audioRef.current = new Audio();
@@ -42,15 +91,30 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     };
     const updateDuration = () => setDuration(audio.duration);
     const onEnded = () => setIsPlaying(false);
+    const onError = () => {
+      console.error("Audio element error:", audio.error);
+      console.error("Audio src:", audio.src);
+    };
+    const onStalled = () => console.warn("Audio playback stalled (network issue?)");
+    const onWaiting = () => console.log("Audio waiting for data...");
+    const onCanPlay = () => console.log("Audio can start playing");
 
     audio.addEventListener('timeupdate', updateProgress);
     audio.addEventListener('loadedmetadata', updateDuration);
     audio.addEventListener('ended', onEnded);
+    audio.addEventListener('error', onError);
+    audio.addEventListener('stalled', onStalled);
+    audio.addEventListener('waiting', onWaiting);
+    audio.addEventListener('canplay', onCanPlay);
 
     return () => {
       audio.removeEventListener('timeupdate', updateProgress);
       audio.removeEventListener('loadedmetadata', updateDuration);
       audio.removeEventListener('ended', onEnded);
+      audio.removeEventListener('error', onError);
+      audio.removeEventListener('stalled', onStalled);
+      audio.removeEventListener('waiting', onWaiting);
+      audio.removeEventListener('canplay', onCanPlay);
       audio.pause();
     };
   }, [isSample]);
@@ -68,8 +132,14 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         ],
       });
 
-      navigator.mediaSession.setActionHandler('play', () => togglePlay());
-      navigator.mediaSession.setActionHandler('pause', () => togglePlay());
+      navigator.mediaSession.setActionHandler('play', () => {
+        console.log("MediaSession: play");
+        togglePlay();
+      });
+      navigator.mediaSession.setActionHandler('pause', () => {
+        console.log("MediaSession: pause");
+        togglePlay();
+      });
       navigator.mediaSession.setActionHandler('seekbackward', () => {
         if (audioRef.current) audioRef.current.currentTime -= 10;
       });
@@ -78,47 +148,7 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         if (audioRef.current) audioRef.current.currentTime += 10;
       });
     }
-  }, [currentTrack, isSample]);
-
-  const playTrack = async (track: Track, sample: boolean = false) => {
-    if (!audioRef.current) return;
-
-    const url = sample ? track.sampleUrl : track.audioUrl;
-    setIsSample(sample);
-
-    if (currentTrack?.id !== track.id || audioRef.current.src !== url) {
-      setCurrentTrack(track);
-      audioRef.current.src = url;
-      audioRef.current.load();
-    }
-    
-    try {
-      await audioRef.current.play();
-      setIsPlaying(true);
-    } catch (e: any) {
-      if (e.name !== 'AbortError') {
-        console.error("Playback failed:", e);
-      }
-    }
-  };
-
-  const togglePlay = async () => {
-    if (!audioRef.current || !currentTrack) return;
-
-    if (isPlaying) {
-      audioRef.current.pause();
-      setIsPlaying(false);
-    } else {
-      try {
-        await audioRef.current.play();
-        setIsPlaying(true);
-      } catch (e: any) {
-        if (e.name !== 'AbortError') {
-          console.error("Playback failed:", e);
-        }
-      }
-    }
-  };
+  }, [currentTrack, isSample, togglePlay]);
 
   const seek = (time: number) => {
     if (audioRef.current) {
