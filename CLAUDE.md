@@ -1,12 +1,12 @@
-# Project Rules: gemini-app
+# プロジェクトルール: gemini-app
 
-## Development Workflow
-- **Pull Requests:** All changes must be via PR.
-- **Language:** PR titles and descriptions must be in **Japanese**.
-- **Review Policy:** **Do NOT merge automatically.** The user will review and merge.
-- **Direct Pushes:** Prohibited for `main` branch.
+## 開発ワークフロー
+- **プルリクエスト:** すべての変更はプルリクエスト（PR）経由で行う必要があります。
+- **言語:** PRのタイトルと言葉は必ず**日本語**で記述し、詳細な修正内容を含めてください。
+- **レビュー方針:** **自動マージは禁止です。** 必ずユーザーが内容を確認し、マージを行います。
+- **直接プッシュ:** `main` ブランチへの直接プッシュは禁止されています。
 
-## Technical Commands
-- Build: `npm run build`
-- Lint: `npm run lint`
-- Dev: `npm run dev`
+## 主要コマンド
+- ビルド: `npm run build`
+- リンター: `npm run lint`
+- 開発サーバー: `npm run dev`

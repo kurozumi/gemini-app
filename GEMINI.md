@@ -1,14 +1,14 @@
-# Project Instructions: gemini-app
+# プロジェクト指示書: gemini-app
 
-## Development Workflow
-- **GitHub Strategy:** All feature additions and code changes must be submitted via **Pull Requests**. 
-- **PR Descriptions:** Pull Request titles and descriptions must be written in **Japanese**, providing detailed information about the changes.
-- **No Automatic Merges:** **NEVER** merge a Pull Request automatically. Create the PR and wait for the user to review and merge it.
-- **Direct Pushes:** Do not push directly to the `main` branch.
+## 開発ワークフロー
+- **GitHub戦略:** すべての機能追加およびコード修正は**プルリクエスト**を通じて提出する必要があります。
+- **PRの説明:** プルリクエストのタイトルと説明は**日本語**で記述し、変更内容に関する詳細な情報を提供してください。
+- **自動マージの禁止:** プルリクエストを自動でマージすることは**絶対にしないでください**。PRを作成した後は、ユーザーによるレビューとマージを待ってください。
+- **直接プッシュ:** `main` ブランチに直接プッシュしないでください。
 
-## Rules & Conventions (Past Instructions)
-- Pull Request descriptions must be in Japanese.
-- All code changes must be submitted via PR (No direct push to main).
-- Always verify changes with `npm run build` and `npm run lint` before creating a PR.
-- Use surgical updates for code changes.
-- Follow Next.js and TypeScript best practices.
+## ルールと慣習（過去の指示）
+- プルリクエストの説明は日本語で行うこと。
+- すべてのコード変更はPR経由で行うこと（mainへの直接プッシュは禁止）。
+- PR作成前に必ず `npm run build` と `npm run lint` で変更を確認すること。
+- コードの修正は「外科的（最小限かつ正確）」に行うこと。
+- Next.js と TypeScript のベストプラクティスに従うこと。
