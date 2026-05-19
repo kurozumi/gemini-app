@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   LiveKitRoom, 
   AudioConference, 
@@ -17,6 +17,28 @@ export default function LivePage() {
   const [isBroadcaster, setIsBroadcaster] = useState(false);
   const [isAudioEnabled, setIsAudioEnabled] = useState(false);
 
+  // 保存された接続情報を管理するステート
+  const [savedUrl, setSavedUrl] = useState('');
+  const [savedToken, setSavedToken] = useState('');
+
+  // マウント時にlocalStorageからロード
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const storedUrl = localStorage.getItem('livekit_url');
+      const storedToken = localStorage.getItem('livekit_token');
+      
+      // setStateを副作用として実行
+      if (storedUrl) {
+        // eslint-disable-next-line react-hooks/set-state-in-effect
+        setSavedUrl(storedUrl);
+      }
+      if (storedToken) {
+        // eslint-disable-next-line react-hooks/set-state-in-effect
+        setSavedToken(storedToken);
+      }
+    }
+  }, []);
+
   // 実際にはサーバーから取得しますが、プロトタイプとして入力フォームを用意します
   const handleConnect = (e: React.FormEvent<HTMLFormElement>) => {
     try {
@@ -30,6 +52,10 @@ export default function LivePage() {
         alert('URLとトークンを入力してください');
         return;
       }
+
+      // 接続情報を保存
+      localStorage.setItem('livekit_url', inputUrl);
+      localStorage.setItem('livekit_token', inputToken);
 
       Logger.info('Attempting LiveKit connection', { url: inputUrl, role });
       
@@ -47,9 +73,12 @@ export default function LivePage() {
   const handleStartAudio = async () => {
     try {
       // ユーザーの操作でオーディオコンテキストをアクティブにする
-      const AudioContext = (window as any).AudioContext || (window as any).webkitAudioContext;
-      if (AudioContext) {
-        const ctx = new AudioContext();
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const WinWithAudio = window as any;
+      const AudioContextClass = WinWithAudio.AudioContext || WinWithAudio.webkitAudioContext;
+      
+      if (AudioContextClass) {
+        const ctx = new AudioContextClass();
         await ctx.resume();
         Logger.info('AudioContext resumed via user gesture');
       }
@@ -72,11 +101,23 @@ export default function LivePage() {
           <form onSubmit={handleConnect} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
             <div>
               <label style={{ display: 'block', fontSize: '0.8rem', marginBottom: '4px' }}>WebSocket URL</label>
-              <input name="url" placeholder="wss://..." required style={{ width: '100%', padding: '0.75rem', borderRadius: '8px', backgroundColor: 'var(--secondary)', border: '1px solid var(--border)', color: 'white' }} />
+              <input 
+                name="url" 
+                defaultValue={savedUrl} 
+                placeholder="wss://..." 
+                required 
+                style={{ width: '100%', padding: '0.75rem', borderRadius: '8px', backgroundColor: 'var(--secondary)', border: '1px solid var(--border)', color: 'white' }} 
+              />
             </div>
             <div>
               <label style={{ display: 'block', fontSize: '0.8rem', marginBottom: '4px' }}>Token</label>
-              <input name="token" placeholder="eyJ..." required style={{ width: '100%', padding: '0.75rem', borderRadius: '8px', backgroundColor: 'var(--secondary)', border: '1px solid var(--border)', color: 'white' }} />
+              <input 
+                name="token" 
+                defaultValue={savedToken} 
+                placeholder="eyJ..." 
+                required 
+                style={{ width: '100%', padding: '0.75rem', borderRadius: '8px', backgroundColor: 'var(--secondary)', border: '1px solid var(--border)', color: 'white' }} 
+              />
             </div>
             <div>
               <label style={{ display: 'block', fontSize: '0.8rem', marginBottom: '4px' }}>役割</label>
