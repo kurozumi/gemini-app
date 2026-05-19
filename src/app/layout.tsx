@@ -4,8 +4,8 @@ import { PlayerProvider } from "@/lib/PlayerContext";
 import { PlayerUI } from "@/components/PlayerUI";
 
 export const metadata: Metadata = {
-  title: "おやすみASMR | 極上の添い寝ボイス配信PWA",
-  description: "あなたの夜に寄り添う、最高品質のASMRと添い寝ボイスをお届けします。",
+  title: "コエトバ | 声で、つながる匿名音声掲示板",
+  description: "会員登録不要。匿名で誰でもすぐに音声配信や聴取ができるリアルタイムプラットフォームです。",
   manifest: "/manifest.json",
 };
 
@@ -29,7 +29,7 @@ export default function RootLayout({
           <header className="header">
             <div className="container headerInner">
               <h1 style={{ fontSize: '1.25rem', fontWeight: 'bold', margin: 0, color: 'var(--primary)' }}>
-                <a href="/">おやすみASMR</a>
+                <a href="/">コエトバ</a>
               </h1>
               <nav>
                 <ul className="navList">

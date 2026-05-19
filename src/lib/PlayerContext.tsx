@@ -127,7 +127,7 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       navigator.mediaSession.metadata = new MediaMetadata({
         title: isSample ? `[試聴] ${currentTrack.title}` : currentTrack.title,
         artist: currentTrack.artist,
-        album: 'おやすみASMR',
+        album: 'コエトバ',
         artwork: [
           { src: currentTrack.thumbnailUrl, sizes: '96x96', type: 'image/jpeg' },
           { src: currentTrack.thumbnailUrl, sizes: '512x512', type: 'image/jpeg' },
