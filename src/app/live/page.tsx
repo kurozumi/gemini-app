@@ -60,7 +60,10 @@ function LivePageContent() {
       const formData = new FormData(e.currentTarget);
       const inputRoom = (formData.get('room') as string) || 'main-room';
       const role = formData.get('role') as string;
-      const username = `user-${crypto.randomUUID()}`;
+      const uuid = typeof crypto !== 'undefined' && crypto.randomUUID 
+        ? crypto.randomUUID() 
+        : Math.random().toString(36).substring(2, 11) + Date.now().toString(36);
+      const username = `user-${uuid}`;
 
       // ルーム名を保存
       localStorage.setItem('livekit_room_name', inputRoom);

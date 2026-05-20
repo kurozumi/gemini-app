@@ -4,7 +4,7 @@ import { NextRequest, NextResponse } from 'next/server';
 export async function GET(req: NextRequest) {
   const room = req.nextUrl.searchParams.get('room');
   const username = req.nextUrl.searchParams.get('username');
-  const role = req.nextUrl.searchParams.get('role'); // 'host' or 'listener'
+  const role = req.nextUrl.searchParams.get('role') || 'listener';
 
   if (!room || !username) {
     return NextResponse.json({ error: 'Missing room or username' }, { status: 400 });
@@ -21,7 +21,7 @@ export async function GET(req: NextRequest) {
   const displayName = role === 'host' ? '配信者' : 'リスナー';
 
   const at = new AccessToken(apiKey, apiSecret, {
-    identity: username,
+    identity: `${username}-${role}`,
     name: displayName,
   });
 
