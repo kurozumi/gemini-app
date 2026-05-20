@@ -60,7 +60,7 @@ function LivePageContent() {
       const formData = new FormData(e.currentTarget);
       const inputRoom = (formData.get('room') as string) || 'main-room';
       const role = formData.get('role') as string;
-      const username = `user-${Math.floor(Math.random() * 10000)}`;
+      const username = `user-${crypto.randomUUID()}`;
 
       // ルーム名を保存
       localStorage.setItem('livekit_room_name', inputRoom);
