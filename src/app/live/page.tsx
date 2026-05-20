@@ -7,7 +7,8 @@ import {
   GridLayout,
   ParticipantTile,
   useTracks,
-  DisconnectButton
+  DisconnectButton,
+  TrackToggle
 } from '@livekit/components-react';
 import '@livekit/components-styles';
 import { useSearchParams, useRouter } from 'next/navigation';
@@ -89,6 +90,24 @@ function CustomConference({ isBroadcaster }: { isBroadcaster: boolean }) {
           background-color: #ff3333 !important;
           transform: scale(1.05);
         }
+        /* マイクボタンのテキストを消す */
+        .lk-button.lk-track-toggle {
+          background: rgba(255, 255, 255, 0.1);
+          border-radius: 50%;
+          width: 50px;
+          height: 50px;
+          padding: 0;
+          display: flex;
+          justify-content: center;
+          align-items: center;
+          border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        .lk-button.lk-track-toggle:hover {
+          background: rgba(255, 255, 255, 0.2);
+        }
+        .lk-button.lk-track-toggle > span {
+          display: none !important;
+        }
       `}</style>
     </div>
   );
@@ -102,6 +121,7 @@ function LivePageContent() {
   const [isBroadcaster, setIsBroadcaster] = useState(false);
   const [isAudioEnabled, setIsAudioEnabled] = useState(false);
   const [currentRoomId, setCurrentRoomId] = useState<string | null>(null);
+  const [isCopied, setIsCopied] = useState(false);
 
   // ステート管理
   const [roomName, setRoomName] = useState('main-room');
@@ -121,6 +141,26 @@ function LivePageContent() {
       }
     }
   }, [searchParams]);
+
+  const handleShare = async () => {
+    const shareUrl = window.location.href;
+    if (navigator.share) {
+      try {
+        await navigator.share({
+          title: `コエトバ - ${roomName}`,
+          text: 'ライブ配信に参加しませんか？',
+          url: shareUrl,
+        });
+      } catch (err) {
+        // ユーザーがキャンセルした場合は何もしない
+      }
+    } else {
+      // フォールバック: クリップボードにコピー
+      await navigator.clipboard.writeText(shareUrl);
+      setIsCopied(true);
+      setTimeout(() => setIsCopied(false), 2000);
+    }
+  };
 
   // 配信終了時のクリーンアップ
   const handleDisconnected = useCallback(async () => {
@@ -328,7 +368,39 @@ function LivePageContent() {
               <CustomConference isBroadcaster={isBroadcaster} />
               <RoomAudioRenderer />
               
-              <div style={{ marginTop: '2.5rem' }}>
+              <div style={{ 
+                marginTop: '2.5rem', 
+                display: 'flex', 
+                alignItems: 'center', 
+                gap: '1rem',
+                flexWrap: 'wrap',
+                justifyContent: 'center'
+              }}>
+                {isBroadcaster && (
+                  <TrackToggle source={Track.Source.Microphone} />
+                )}
+
+                <button
+                  onClick={handleShare}
+                  style={{
+                    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+                    color: 'white',
+                    borderRadius: '50px',
+                    padding: '0.8rem 1.5rem',
+                    fontWeight: 'bold',
+                    border: '1px solid rgba(255, 255, 255, 0.1)',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '0.5rem',
+                    transition: 'all 0.2s'
+                  }}
+                  onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.2)')}
+                  onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.1)')}
+                >
+                  <span>{isCopied ? 'コピーしました！' : '🔗 共有する'}</span>
+                </button>
+
                 <DisconnectButton>退出する</DisconnectButton>
               </div>
             </>
