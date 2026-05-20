@@ -11,11 +11,13 @@
 | 機能 | 説明 |
 | :--- | :--- |
 | 匿名音声配信 | 会員登録なし、ランダムなユーザーIDで即座に参加 |
+| ルーム名設定 | 配信開始時に好きなルーム名を設定可能 |
 | 自動トークン発行 | サーバーサイドAPIでLiveKit接続トークンを安全に生成 |
-| 役割ベースの権限制御 | 配信者（host）は音声Publish可能、リスナーはSubscribeのみ |
+| 役割ベースの権限制御 | 配信者とリスナーを自動判別し、適切な権限を付与 |
 | ライブルーム一覧 | Supabaseのリアルタイム更新で配信中ルームを自動表示・削除 |
-| ルームのライフサイクル管理 | 配信開始時にSupabaseへ登録、切断時に自動削除 |
-| LiveKit Webhook | LiveKitイベント受信によるルームの確実なクリーンアップ |
+| 究極のルーム管理 | Webhook、Keep-alive、実態同期APIの3段構えでルームの消し忘れを完全防止 |
+| モダンなUI/UX | ガラスモーフィズムを採用したタイルデザインと、共有機能（Web Share API） |
+| レスポンシブ対応 | PCからスマホ、13インチモニターまで最適化された表示 |
 | iOS対応 | iOS SafariのAutoPlay制限を回避する手動オーディオアンロック |
 | サーバーサイドログ | `/api/logs` への非同期ロギングでブラウザ外のエラーも捕捉 |
 
@@ -90,7 +92,7 @@ Vercelのプロジェクト設定（Settings > Environment Variables）に以下
    | 項目 | 値 |
    | :--- | :--- |
    | URL | `https://your-domain.vercel.app/api/livekit/webhook` |
-   | Events | `room_finished`, `participant_disconnected` |
+   | Events | `room_finished`, `participant_left` |
 
 > **注意:** Webhook URLは本番環境（Vercelの本番URL）を使用してください。ローカル開発環境ではlocalhost宛にLiveKitからリクエストを送れないため、[ngrok](https://ngrok.com/) 等でトンネルを作成する必要があります。
 
@@ -104,12 +106,14 @@ Vercelのプロジェクト設定（Settings > Environment Variables）に以下
   ├─ /live          配信・聴取ページ
   │    ├─ 配信開始 → POST /api/livekit/token (トークン取得)
   │    ├─ 配信開始 → Supabase.rooms に INSERT
-  │    └─ 切断時   → Supabase.rooms から DELETE
+  │    ├─ 離脱時   → POST /api/live/cleanup (即時削除、keepalive通信)
+  │    └─ 離脱警告 → beforeunload イベントでの誤操作防止
   │
   ├─ /             トップページ（ライブ一覧）
+  │    ├─ 表示時   → GET /api/live/sync (LiveKitサーバーの実態と同期)
   │    └─ Supabase リアルタイム購読でルーム一覧を自動更新
   │
-  └─ /api/livekit/webhook  LiveKitイベント受信 → ルーム強制クリーンアップ
+  └─ /api/livekit/webhook  LiveKitイベント受信（participant_left等） → ルーム強制クリーンアップ
 ```
 
 ---
@@ -140,13 +144,9 @@ Vercelでは環境変数を追加しただけでは実行中のアプリに反�
 **A. ユーザー操作（タップ）が必要です。**
 iOS Safari等のブラウザでは、自動再生が厳しく制限されています。リスナーとして入室した後、画面に表示される **「🔊 ライブを聴く」** ボタンを必ずタップしてください。
 
-### Q. LiveKitのURLがエラーになる
-**A. 接頭辞を確認してください。**
-URLが `https://` ではなく **`wss://`** で始まっていることを確認してください。
-
 ### Q. 配信を終了してもルーム一覧に残り続ける
-**A. Webhook が未設定か、配信者が正常に切断されていません。**
-LiveKit の Webhook（`/api/livekit/webhook`）を設定することで、ブラウザを強制終了した場合でもルームが自動削除されます。設定手順は「[LiveKit Webhook の設定](#4-livekit-webhook-の設定ルーム自動クリーンアップ)」を参照してください。
+**A. 本システムは3段構えで対応していますが、Webhookが未設定の場合は、ブラウザを閉じると数分残る場合があります。**
+LiveKit の Webhook（`/api/livekit/webhook`）を設定することで、より即座に自動削除されます。設定手順は「[LiveKit Webhook の設定](#4-livekit-webhook-の設定ルーム自動クリーンアップ)」を参照してください。
 
 ---
 
