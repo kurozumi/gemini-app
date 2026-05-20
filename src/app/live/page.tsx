@@ -10,7 +10,7 @@ import {
   DisconnectButton
 } from '@livekit/components-react';
 import '@livekit/components-styles';
-import { useSearchParams } from 'next/navigation';
+import { useSearchParams, useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase/client';
 import { Track } from 'livekit-client';
 
@@ -96,6 +96,7 @@ function CustomConference({ isBroadcaster }: { isBroadcaster: boolean }) {
 
 function LivePageContent() {
   const searchParams = useSearchParams();
+  const router = useRouter();
   const [token, setToken] = useState<string | null>(null);
   const [url, setUrl] = useState<string | null>(null);
   const [isBroadcaster, setIsBroadcaster] = useState(false);
@@ -131,7 +132,10 @@ function LivePageContent() {
     setUrl(null);
     setCurrentRoomId(null);
     setIsBroadcaster(false);
-  }, [isBroadcaster, currentRoomId]);
+
+    // ホームに戻る
+    router.push('/');
+  }, [isBroadcaster, currentRoomId, router]);
 
   const handleConnect = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
