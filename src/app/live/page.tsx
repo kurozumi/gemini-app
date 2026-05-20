@@ -141,12 +141,13 @@ function LivePageContent() {
   const [isCopied, setIsCopied] = useState(false);
 
   // ステート管理
-  const [roomName, setRoomName] = useState('main-room');
+  const [roomName, setRoomName] = useState('');
   const [isConnecting, setIsConnecting] = useState(false);
   const [hasAutoConnected, setHasAutoConnected] = useState(false);
 
-  // 接続処理を関数として抽出
+  // 接続処理
   const connectToRoom = useCallback(async (inputRoom: string, role: string) => {
+    if (!inputRoom) return;
     setIsConnecting(true);
     try {
       const uuid = typeof crypto !== 'undefined' && crypto.randomUUID 
@@ -157,7 +158,7 @@ function LivePageContent() {
       localStorage.setItem('livekit_room_name', inputRoom);
       Logger.info('Connecting to room', { room: inputRoom, role });
       
-      const resp = await fetch(`/api/livekit/token?room=${inputRoom}&username=${username}&role=${role}`);
+      const resp = await fetch(`/api/livekit/token?room=${encodeURIComponent(inputRoom)}&username=${username}&role=${role}`);
       const data = await resp.json();
 
       if (data.error) throw new Error(data.error);
@@ -186,7 +187,7 @@ function LivePageContent() {
     }
   }, []);
 
-  // URLパラメータや保存された情報からルーム名を初期化、および自動接続
+  // URLパラメータからの自動接続と初期化
   useEffect(() => {
     const roomParam = searchParams.get('room');
     const roleParam = searchParams.get('role');
@@ -194,37 +195,26 @@ function LivePageContent() {
     if (roomParam) {
       // eslint-disable-next-line react-hooks/set-state-in-effect
       setRoomName(roomParam);
-    } else if (typeof window !== 'undefined') {
-      const storedRoom = localStorage.getItem('livekit_room_name');
-      // eslint-disable-next-line react-hooks/set-state-in-effect
-      if (storedRoom) setRoomName(storedRoom);
     }
 
-    // roleとroomが指定されている場合は自動接続
-    if (roleParam && !hasAutoConnected) {
-      const roomToJoin = roomParam || 'main-room';
+    // roleとroomが両方揃っている場合のみ自動接続（リスナーやリンク共有時）
+    if (roleParam && roomParam && !hasAutoConnected) {
       setHasAutoConnected(true);
-      connectToRoom(roomToJoin, roleParam);
+      connectToRoom(roomParam, roleParam);
     }
   }, [searchParams, hasAutoConnected, connectToRoom]);
 
-  // 配信終了時のクリーンアップ処理（バックエンドAPIを呼び出し）
+  // クリーンアップ処理
   const cleanupRoom = useCallback((roomId: string) => {
-    Logger.info('Reliable cleanup triggered', { roomId });
-    // keepalive: true を指定することで、ページ遷移や閉じられた際もリクエストが保証される
     fetch('/api/live/cleanup', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ roomId }),
       keepalive: true,
-    }).catch(err => {
-      console.error('Cleanup fetch failed:', err);
-    });
+    }).catch(err => console.error('Cleanup fetch failed:', err));
   }, []);
 
-  // コンポーネントがアンマウントされた際やナビゲーション時のクリーンアップ
   useEffect(() => {
-    // 配信者の場合のみクリーンアップを予約
     return () => {
       if (isBroadcaster && currentRoomId) {
         cleanupRoom(currentRoomId);
@@ -232,21 +222,13 @@ function LivePageContent() {
     };
   }, [isBroadcaster, currentRoomId, cleanupRoom]);
 
-  // ブラウザを閉じる/リロードする/ナビゲーションする際の汎用的なクリーンアップ
   useEffect(() => {
     if (!isBroadcaster || !currentRoomId) return;
-
-    const handlePageHide = () => {
-      // タブを閉じる、リロード、別サイトへの遷移時に確実に実行される
-      cleanupRoom(currentRoomId);
-    };
-
+    const handlePageHide = () => cleanupRoom(currentRoomId);
     const handleBeforeUnload = (e: BeforeUnloadEvent) => {
-      // 離脱前の確認アラート
       e.preventDefault();
       e.returnValue = '';
     };
-
     window.addEventListener('pagehide', handlePageHide);
     window.addEventListener('beforeunload', handleBeforeUnload);
     return () => {
@@ -255,25 +237,20 @@ function LivePageContent() {
     };
   }, [isBroadcaster, currentRoomId, cleanupRoom]);
 
-  // 配信終了時のクリーンアップ（DisconnectButton経由など）
   const handleDisconnected = useCallback(async () => {
-    if (isBroadcaster && currentRoomId) {
-      cleanupRoom(currentRoomId);
-    }
+    if (isBroadcaster && currentRoomId) cleanupRoom(currentRoomId);
     setToken(null);
     setUrl(null);
     setCurrentRoomId(null);
     setIsBroadcaster(false);
-
-    // ホームに戻る
     router.push('/');
   }, [isBroadcaster, currentRoomId, router, cleanupRoom]);
 
-  const handleConnect = async (e: React.FormEvent<HTMLFormElement>) => {
+  const handleFormSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const formData = new FormData(e.currentTarget);
-    const inputRoom = (formData.get('room') as string) || 'main-room';
-    const role = formData.get('role') as string;
+    const inputRoom = formData.get('room') as string;
+    const role = searchParams.get('role') || 'host'; // デフォルトは配信者
     connectToRoom(inputRoom, role);
   };
 
@@ -281,16 +258,9 @@ function LivePageContent() {
     const shareUrl = window.location.href;
     if (navigator.share) {
       try {
-        await navigator.share({
-          title: `コエトバ - ${roomName}`,
-          text: 'ライブ配信に参加しませんか？',
-          url: shareUrl,
-        });
-      } catch {
-        // ユーザーがキャンセルした場合は何もしない
-      }
+        await navigator.share({ title: `コエトバ - ${roomName}`, url: shareUrl });
+      } catch { /* cancel */ }
     } else {
-      // フォールバック: クリップボードにコピー
       await navigator.clipboard.writeText(shareUrl);
       setIsCopied(true);
       setTimeout(() => setIsCopied(false), 2000);
@@ -299,15 +269,12 @@ function LivePageContent() {
 
   const handleStartAudio = async () => {
     try {
-      // ユーザーの操作でオーディオコンテキストをアクティブにする
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const WinWithAudio = window as any;
       const AudioContextClass = WinWithAudio.AudioContext || WinWithAudio.webkitAudioContext;
-      
       if (AudioContextClass) {
         const ctx = new AudioContextClass();
         await ctx.resume();
-        Logger.info('AudioContext resumed via user gesture');
       }
       setIsAudioEnabled(true);
     } catch (err: unknown) {
@@ -317,45 +284,69 @@ function LivePageContent() {
   };
 
   if (!token || !url) {
+    const isHostInit = searchParams.get('role') === 'host' && !searchParams.get('room');
+    
     return (
-      <div style={{ padding: '2rem 0', maxWidth: '400px', margin: '0 auto' }}>
-        <h2 style={{ marginBottom: '1.5rem', textAlign: 'center' }}>ライブ配信</h2>
-        <div style={{ backgroundColor: 'var(--card-bg)', padding: '1.5rem', borderRadius: '16px', border: '1px solid var(--border)' }}>
-          <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', marginBottom: '1.5rem' }}>
-            ルーム名を入力して「接続する」を押すだけで、自動的に適切な権限で入室します。
+      <div style={{ padding: '4rem 0', maxWidth: '450px', margin: '0 auto' }}>
+        <div style={{ textAlign: 'center', marginBottom: '2.5rem' }}>
+          <div style={{ fontSize: '3.5rem', marginBottom: '1rem' }}>🎙️</div>
+          <h2 style={{ fontSize: '1.8rem', fontWeight: 'bold' }}>
+            {isHostInit ? '配信を準備する' : 'ライブに参加'}
+          </h2>
+          <p style={{ color: 'var(--text-muted)', marginTop: '0.5rem' }}>
+            {isHostInit ? '配信ルームの名前を決めて始めましょう' : 'ルーム名を入力して参加します'}
           </p>
-          <form onSubmit={handleConnect} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+        </div>
+
+        <div style={{ backgroundColor: 'var(--card-bg)', padding: '2rem', borderRadius: '24px', border: '1px solid var(--border)', boxShadow: '0 10px 40px rgba(0,0,0,0.2)' }}>
+          <form onSubmit={handleFormSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
             <div>
-              <label style={{ display: 'block', fontSize: '0.8rem', marginBottom: '4px' }}>ルーム名</label>
+              <label style={{ display: 'block', fontSize: '0.9rem', fontWeight: '600', marginBottom: '8px', color: 'var(--text-muted)' }}>
+                ルーム名
+              </label>
               <input 
                 name="room" 
-                defaultValue={roomName} 
-                placeholder="例: my-live-show" 
+                value={roomName}
+                onChange={(e) => setRoomName(e.target.value)}
+                placeholder="例: 深夜の雑談ラジオ" 
                 required 
-                style={{ width: '100%', padding: '0.75rem', borderRadius: '8px', backgroundColor: 'var(--secondary)', border: '1px solid var(--border)', color: 'white' }} 
+                autoFocus
+                style={{ 
+                  width: '100%', 
+                  padding: '1rem', 
+                  borderRadius: '12px', 
+                  backgroundColor: 'rgba(255,255,255,0.05)', 
+                  border: '2px solid var(--border)', 
+                  color: 'white',
+                  fontSize: '1.1rem',
+                  outline: 'none',
+                  transition: 'border-color 0.2s'
+                }}
+                onFocus={(e) => (e.target.style.borderColor = 'var(--primary)')}
+                onBlur={(e) => (e.target.style.borderColor = 'var(--border)')}
               />
             </div>
-            <div>
-              <label style={{ display: 'block', fontSize: '0.8rem', marginBottom: '4px' }}>役割</label>
-              <select name="role" style={{ width: '100%', padding: '0.75rem', borderRadius: '8px', backgroundColor: 'var(--secondary)', border: '1px solid var(--border)', color: 'white' }}>
-                <option value="listener">リスナー（聴く）</option>
-                <option value="host">配信者（喋る）</option>
-              </select>
-            </div>
+            
             <button 
               type="submit" 
-              disabled={isConnecting}
+              disabled={isConnecting || !roomName}
               style={{ 
-                marginTop: '1rem', 
-                padding: '1rem', 
-                borderRadius: '8px', 
-                backgroundColor: isConnecting ? 'var(--secondary)' : 'var(--primary)', 
+                marginTop: '0.5rem', 
+                padding: '1.1rem', 
+                borderRadius: '12px', 
+                backgroundColor: (isConnecting || !roomName) ? 'var(--secondary)' : 'var(--primary)', 
                 color: 'white', 
                 fontWeight: 'bold',
-                cursor: isConnecting ? 'not-allowed' : 'pointer'
+                fontSize: '1.1rem',
+                cursor: (isConnecting || !roomName) ? 'not-allowed' : 'pointer',
+                border: 'none',
+                boxShadow: '0 4px 15px rgba(0,0,0,0.2)',
+                transition: 'transform 0.1s, opacity 0.2s'
               }}
+              onMouseDown={(e) => !isConnecting && roomName && (e.currentTarget.style.transform = 'scale(0.98)')}
+              onMouseUp={(e) => !isConnecting && roomName && (e.currentTarget.style.transform = 'scale(1)')}
             >
-              {isConnecting ? '接続中...' : 'ライブに参加する'}
+              {isConnecting ? '接続中...' : (isHostInit ? '配信を開始する' : 'ライブに参加する')}
             </button>
           </form>
         </div>
@@ -371,12 +362,8 @@ function LivePageContent() {
         token={token}
         serverUrl={url}
         onDisconnected={handleDisconnected}
-        onConnected={() => {
-          Logger.info('Successfully connected to LiveKit');
-        }}
-        onError={(error) => {
-          Logger.error('LiveKit connection error', { message: error.message });
-        }}
+        onConnected={() => Logger.info('Successfully connected to LiveKit')}
+        onError={(error) => Logger.error('LiveKit connection error', { message: error.message })}
         data-lk-theme="default"
         style={{ 
           flex: 1, 
@@ -391,7 +378,6 @@ function LivePageContent() {
         }}
       >
         <div className="live-container" style={{ padding: '1.5rem', flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', overflowY: 'auto' }}>
-          {/* 配信者、またはオーディオ開始前のリスナーのみヘッダー情報を表示 */}
           {(isBroadcaster || !isAudioEnabled) && (
             <div className="live-header" style={{ textAlign: 'center' }}>
               <div className="live-icon" style={{ fontSize: '4rem', marginBottom: '1rem' }}>{isBroadcaster ? '🎙️' : '🎧'}</div>
