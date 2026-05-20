@@ -14,6 +14,7 @@ import '@livekit/components-styles';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase/client';
 import { Track } from 'livekit-client';
+import { generateUserId } from '@/lib/utils';
 
 import Logger from '@/lib/logger';
 
@@ -150,10 +151,7 @@ function LivePageContent() {
     if (!inputRoom) return;
     setIsConnecting(true);
     try {
-      const uuid = typeof crypto !== 'undefined' && crypto.randomUUID 
-        ? crypto.randomUUID() 
-        : Math.random().toString(36).substring(2, 11) + Date.now().toString(36);
-      const username = `user-${uuid}`;
+      const username = generateUserId();
 
       localStorage.setItem('livekit_room_name', inputRoom);
       Logger.info('Connecting to room', { room: inputRoom, role });
