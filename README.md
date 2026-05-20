@@ -6,7 +6,21 @@
 「コエトバ（声×場）」は、名前も知らない誰かと声だけで繋がれる、温かくて気軽な音声掲示板です。
 ログインの手間なく、今この瞬間の想いを声に乗せて届けることができます。
 
+## 実装済み機能
+
+| 機能 | 説明 |
+| :--- | :--- |
+| 匿名音声配信 | 会員登録なし、ランダムなユーザーIDで即座に参加 |
+| 自動トークン発行 | サーバーサイドAPIでLiveKit接続トークンを安全に生成 |
+| 役割ベースの権限制御 | 配信者（host）は音声Publish可能、リスナーはSubscribeのみ |
+| ライブルーム一覧 | Supabaseのリアルタイム更新で配信中ルームを自動表示・削除 |
+| ルームのライフサイクル管理 | 配信開始時にSupabaseへ登録、切断時に自動削除 |
+| LiveKit Webhook | LiveKitイベント受信によるルームの確実なクリーンアップ |
+| iOS対応 | iOS SafariのAutoPlay制限を回避する手動オーディオアンロック |
+| サーバーサイドログ | `/api/logs` への非同期ロギングでブラウザ外のエラーも捕捉 |
+
 ## 技術スタック
+
 - **Framework:** Next.js (App Router)
 - **Streaming:** LiveKit Cloud
 - **Database / Real-time:** Supabase
@@ -65,6 +79,39 @@ Vercelのプロジェクト設定（Settings > Environment Variables）に以下
 | `NEXT_PUBLIC_SUPABASE_URL` | `https://your-project.supabase.co` |
 | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | (Supabase anon key) |
 
+### 4. LiveKit Webhook の設定（ルーム自動クリーンアップ）
+
+配信者がブラウザを強制終了した場合でも、ルーム一覧に残骸が残らないようにするためのWebhook設定です。
+
+1. [LiveKit Cloud](https://cloud.livekit.io) にログインし、プロジェクトを選択します。
+2. **Settings > Webhooks** を開きます。
+3. 以下を設定して保存します。
+
+   | 項目 | 値 |
+   | :--- | :--- |
+   | URL | `https://your-domain.vercel.app/api/livekit/webhook` |
+   | Events | `room_finished`, `participant_disconnected` |
+
+> **注意:** Webhook URLは本番環境（Vercelの本番URL）を使用してください。ローカル開発環境ではlocalhost宛にLiveKitからリクエストを送れないため、[ngrok](https://ngrok.com/) 等でトンネルを作成する必要があります。
+
+---
+
+## アーキテクチャ概要
+
+```
+ブラウザ (Next.js)
+  │
+  ├─ /live          配信・聴取ページ
+  │    ├─ 配信開始 → POST /api/livekit/token (トークン取得)
+  │    ├─ 配信開始 → Supabase.rooms に INSERT
+  │    └─ 切断時   → Supabase.rooms から DELETE
+  │
+  ├─ /             トップページ（ライブ一覧）
+  │    └─ Supabase リアルタイム購読でルーム一覧を自動更新
+  │
+  └─ /api/livekit/webhook  LiveKitイベント受信 → ルーム強制クリーンアップ
+```
+
 ---
 
 ## トラブルシューティング（よくある落とし穴）
@@ -96,6 +143,10 @@ iOS Safari等のブラウザでは、自動再生が厳しく制限されてい�
 ### Q. LiveKitのURLがエラーになる
 **A. 接頭辞を確認してください。**
 URLが `https://` ではなく **`wss://`** で始まっていることを確認してください。
+
+### Q. 配信を終了してもルーム一覧に残り続ける
+**A. Webhook が未設定か、配信者が正常に切断されていません。**
+LiveKit の Webhook（`/api/livekit/webhook`）を設定することで、ブラウザを強制終了した場合でもルームが自動削除されます。設定手順は「[LiveKit Webhook の設定](#4-livekit-webhook-の設定ルーム自動クリーンアップ)」を参照してください。
 
 ---
 
