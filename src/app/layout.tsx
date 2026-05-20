@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import "./globals.css";
+import Link from 'next/link';
 
 export const metadata: Metadata = {
   title: "コエトバ | 声で、つながる匿名音声掲示板",
@@ -26,12 +27,12 @@ export default function RootLayout({
         <header className="header">
           <div className="container headerInner">
             <h1 style={{ fontSize: '1.25rem', fontWeight: 'bold', margin: 0, color: 'var(--primary)' }}>
-              <a href="/">コエトバ</a>
+              <Link href="/">コエトバ</Link>
             </h1>
             <nav>
               <ul className="navList">
-                <li><a href="/">ホーム</a></li>
-                <li><a href="/live">ライブ</a></li>
+                <li><Link href="/">ホーム</Link></li>
+                <li><Link href="/live">ライブ</Link></li>
               </ul>
             </nav>
           </div>

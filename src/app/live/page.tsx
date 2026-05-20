@@ -208,41 +208,57 @@ function LivePageContent() {
     }
   }, [searchParams, hasAutoConnected, connectToRoom]);
 
-  // コンポーネントがアンマウントされた際やブラウザを閉じる際のクリーンアップ
-  useEffect(() => {
-    const cleanup = async () => {
-      if (isBroadcaster && currentRoomId && supabase) {
-        // 同期的に実行される必要があるため、fetch APIのkeepaliveやNavigator.sendBeaconを検討するが
-        // ここでは非同期でベストエフォートの削除を行う
-        await supabase.from('rooms').delete().eq('id', currentRoomId);
-      }
-    };
+  // 配信終了時のクリーンアップ処理（バックエンドAPIを呼び出し）
+  const cleanupRoom = useCallback((roomId: string) => {
+    Logger.info('Reliable cleanup triggered', { roomId });
+    // keepalive: true を指定することで、ページ遷移や閉じられた際もリクエストが保証される
+    fetch('/api/live/cleanup', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ roomId }),
+      keepalive: true,
+    }).catch(err => {
+      console.error('Cleanup fetch failed:', err);
+    });
+  }, []);
 
-    // ブラウザの戻るボタンやヘッダーリンクでの遷移に対応
+  // コンポーネントがアンマウントされた際やナビゲーション時のクリーンアップ
+  useEffect(() => {
+    // 配信者の場合のみクリーンアップを予約
     return () => {
-      cleanup();
-    };
-  }, [isBroadcaster, currentRoomId]);
-
-  // ブラウザを閉じる/リロードする際の警告とクリーンアップ
-  useEffect(() => {
-    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
-      if (isBroadcaster) {
-        // 標準的な警告を表示
-        e.preventDefault();
-        e.returnValue = '';
+      if (isBroadcaster && currentRoomId) {
+        cleanupRoom(currentRoomId);
       }
     };
+  }, [isBroadcaster, currentRoomId, cleanupRoom]);
 
+  // ブラウザを閉じる/リロードする/ナビゲーションする際の汎用的なクリーンアップ
+  useEffect(() => {
+    if (!isBroadcaster || !currentRoomId) return;
+
+    const handlePageHide = () => {
+      // タブを閉じる、リロード、別サイトへの遷移時に確実に実行される
+      cleanupRoom(currentRoomId);
+    };
+
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      // 離脱前の確認アラート
+      e.preventDefault();
+      e.returnValue = '';
+    };
+
+    window.addEventListener('pagehide', handlePageHide);
     window.addEventListener('beforeunload', handleBeforeUnload);
-    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
-  }, [isBroadcaster]);
+    return () => {
+      window.removeEventListener('pagehide', handlePageHide);
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+    };
+  }, [isBroadcaster, currentRoomId, cleanupRoom]);
 
   // 配信終了時のクリーンアップ（DisconnectButton経由など）
   const handleDisconnected = useCallback(async () => {
-    if (isBroadcaster && currentRoomId && supabase) {
-      Logger.info('Broadcaster leaving, removing room from Supabase', { roomId: currentRoomId });
-      await supabase.from('rooms').delete().eq('id', currentRoomId);
+    if (isBroadcaster && currentRoomId) {
+      cleanupRoom(currentRoomId);
     }
     setToken(null);
     setUrl(null);
@@ -251,7 +267,7 @@ function LivePageContent() {
 
     // ホームに戻る
     router.push('/');
-  }, [isBroadcaster, currentRoomId, router]);
+  }, [isBroadcaster, currentRoomId, router, cleanupRoom]);
 
   const handleConnect = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();

@@ -31,6 +31,9 @@ export default function LiveRoomList() {
 
     fetchRooms();
 
+    // 背景でLiveKitの実態と同期（幽霊ルームの削除）
+    fetch('/api/live/sync').catch(err => console.error('Sync failed:', err));
+
     // リアルタイム更新の購読
     if (!supabase) return;
 
