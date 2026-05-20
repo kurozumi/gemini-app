@@ -43,10 +43,6 @@ export default function RootLayout({
           <main className="container">
             {children}
           </main>
-
-          <footer className="footer">
-            <PlayerUI />
-          </footer>
         </PlayerProvider>
       </body>
     </html>
