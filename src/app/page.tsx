@@ -11,7 +11,7 @@ export default function Home() {
         <p style={{ color: 'var(--text-muted)', fontSize: '1.1rem', marginBottom: '2.5rem' }}>
           会員登録不要。匿名で誰でもすぐに音声配信を始められます。
         </p>
-        <Link href="/live">
+        <Link href="/live?role=host">
           <button style={{ 
             padding: '1rem 2.5rem', 
             borderRadius: '50px', 

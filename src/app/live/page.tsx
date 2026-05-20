@@ -143,43 +143,102 @@ function LivePageContent() {
   // ステート管理
   const [roomName, setRoomName] = useState('main-room');
   const [isConnecting, setIsConnecting] = useState(false);
+  const [hasAutoConnected, setHasAutoConnected] = useState(false);
 
-  // URLパラメータや保存された情報からルーム名を初期化
+  // 接続処理を関数として抽出
+  const connectToRoom = useCallback(async (inputRoom: string, role: string) => {
+    setIsConnecting(true);
+    try {
+      const uuid = typeof crypto !== 'undefined' && crypto.randomUUID 
+        ? crypto.randomUUID() 
+        : Math.random().toString(36).substring(2, 11) + Date.now().toString(36);
+      const username = `user-${uuid}`;
+
+      localStorage.setItem('livekit_room_name', inputRoom);
+      Logger.info('Connecting to room', { room: inputRoom, role });
+      
+      const resp = await fetch(`/api/livekit/token?room=${inputRoom}&username=${username}&role=${role}`);
+      const data = await resp.json();
+
+      if (data.error) throw new Error(data.error);
+
+      if (role === 'host' && supabase) {
+        const { data: roomData, error: roomError } = await supabase
+          .from('rooms')
+          .insert([{ name: inputRoom, host_name: username }])
+          .select()
+          .single();
+
+        if (roomError) throw new Error(`ルームの作成に失敗しました: ${roomError.message}`);
+        setCurrentRoomId(roomData.id);
+      }
+
+      setToken(data.token);
+      setUrl(data.url);
+      setIsBroadcaster(role === 'host');
+      setIsAudioEnabled(false);
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : '不明なエラーが発生しました';
+      Logger.error('Connection failed', { error: msg });
+      alert(`接続に失敗しました: ${msg}`);
+    } finally {
+      setIsConnecting(false);
+    }
+  }, []);
+
+  // URLパラメータや保存された情報からルーム名を初期化、および自動接続
   useEffect(() => {
     const roomParam = searchParams.get('room');
+    const roleParam = searchParams.get('role');
+
     if (roomParam) {
       // eslint-disable-next-line react-hooks/set-state-in-effect
       setRoomName(roomParam);
     } else if (typeof window !== 'undefined') {
       const storedRoom = localStorage.getItem('livekit_room_name');
-      if (storedRoom) {
-        // eslint-disable-next-line react-hooks/set-state-in-effect
-        setRoomName(storedRoom);
-      }
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      if (storedRoom) setRoomName(storedRoom);
     }
-  }, [searchParams]);
 
-  const handleShare = async () => {
-    const shareUrl = window.location.href;
-    if (navigator.share) {
-      try {
-        await navigator.share({
-          title: `コエトバ - ${roomName}`,
-          text: 'ライブ配信に参加しませんか？',
-          url: shareUrl,
-        });
-      } catch (err) {
-        // ユーザーがキャンセルした場合は何もしない
-      }
-    } else {
-      // フォールバック: クリップボードにコピー
-      await navigator.clipboard.writeText(shareUrl);
-      setIsCopied(true);
-      setTimeout(() => setIsCopied(false), 2000);
+    // roleとroomが指定されている場合は自動接続
+    if (roleParam && !hasAutoConnected) {
+      const roomToJoin = roomParam || 'main-room';
+      setHasAutoConnected(true);
+      connectToRoom(roomToJoin, roleParam);
     }
-  };
+  }, [searchParams, hasAutoConnected, connectToRoom]);
 
-  // 配信終了時のクリーンアップ
+  // コンポーネントがアンマウントされた際やブラウザを閉じる際のクリーンアップ
+  useEffect(() => {
+    const cleanup = async () => {
+      if (isBroadcaster && currentRoomId && supabase) {
+        // 同期的に実行される必要があるため、fetch APIのkeepaliveやNavigator.sendBeaconを検討するが
+        // ここでは非同期でベストエフォートの削除を行う
+        await supabase.from('rooms').delete().eq('id', currentRoomId);
+      }
+    };
+
+    // ブラウザの戻るボタンやヘッダーリンクでの遷移に対応
+    return () => {
+      cleanup();
+    };
+  }, [isBroadcaster, currentRoomId]);
+
+  // ブラウザを閉じる/リロードする際の警告とクリーンアップ
+  useEffect(() => {
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      if (isBroadcaster) {
+        // 標準的な警告を表示
+        e.preventDefault();
+        e.returnValue = '';
+      }
+    };
+
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+  }, [isBroadcaster]);
+
+  // 配信終了時のクリーンアップ（DisconnectButton経由など）
   const handleDisconnected = useCallback(async () => {
     if (isBroadcaster && currentRoomId && supabase) {
       Logger.info('Broadcaster leaving, removing room from Supabase', { roomId: currentRoomId });
@@ -196,64 +255,29 @@ function LivePageContent() {
 
   const handleConnect = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    setIsConnecting(true);
+    const formData = new FormData(e.currentTarget);
+    const inputRoom = (formData.get('room') as string) || 'main-room';
+    const role = formData.get('role') as string;
+    connectToRoom(inputRoom, role);
+  };
 
-    try {
-      const formData = new FormData(e.currentTarget);
-      const inputRoom = (formData.get('room') as string) || 'main-room';
-      const role = formData.get('role') as string;
-      const uuid = typeof crypto !== 'undefined' && crypto.randomUUID 
-        ? crypto.randomUUID() 
-        : Math.random().toString(36).substring(2, 11) + Date.now().toString(36);
-      const username = `user-${uuid}`;
-
-      // ルーム名を保存
-      localStorage.setItem('livekit_room_name', inputRoom);
-
-      Logger.info('Fetching automated token', { room: inputRoom, role });
-      
-      const resp = await fetch(`/api/livekit/token?room=${inputRoom}&username=${username}&role=${role}`);
-      const data = await resp.json();
-
-      if (data.error) {
-        throw new Error(data.error);
+  const handleShare = async () => {
+    const shareUrl = window.location.href;
+    if (navigator.share) {
+      try {
+        await navigator.share({
+          title: `コエトバ - ${roomName}`,
+          text: 'ライブ配信に参加しませんか？',
+          url: shareUrl,
+        });
+      } catch {
+        // ユーザーがキャンセルした場合は何もしない
       }
-
-      // 配信者の場合のみSupabaseにルームを登録
-      if (role === 'host' && supabase) {
-        const { data: roomData, error: roomError } = await supabase
-          .from('rooms')
-          .insert([{ name: inputRoom, host_name: username }])
-          .select()
-          .single();
-
-        if (roomError) {
-          Logger.error('Supabase room insertion failed', { 
-            message: roomError.message, 
-            details: roomError.details, 
-            hint: roomError.hint 
-          });
-          throw new Error(`ルームの作成に失敗しました: ${roomError.message}`);
-        }
-        setCurrentRoomId(roomData.id);
-      }
-
-      setToken(data.token);
-      setUrl(data.url);
-      setIsBroadcaster(role === 'host');
-      setIsAudioEnabled(false);
-    } catch (err: unknown) {
-      let errorMessage = '不明なエラーが発生しました';
-      if (err instanceof Error) {
-        errorMessage = err.message;
-      } else if (typeof err === 'object' && err !== null) {
-        errorMessage = JSON.stringify(err);
-      }
-      
-      Logger.error('Connection failed', { error: errorMessage });
-      alert(`接続に失敗しました: ${errorMessage}`);
-    } finally {
-      setIsConnecting(false);
+    } else {
+      // フォールバック: クリップボードにコピー
+      await navigator.clipboard.writeText(shareUrl);
+      setIsCopied(true);
+      setTimeout(() => setIsCopied(false), 2000);
     }
   };
 
