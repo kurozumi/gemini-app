@@ -20,5 +20,5 @@ test('navigation to live page from start button', async ({ page }) => {
   await expect(page).toHaveURL(/\/live\?role=host/);
 
   // ルーム名入力フィールドが表示されていることを確認
-  await expect(page.getByLabel('ルーム名')).toBeVisible();
+  await expect(page.getByPlaceholder('例: 深夜の雑談ラジオ')).toBeVisible();
 });
