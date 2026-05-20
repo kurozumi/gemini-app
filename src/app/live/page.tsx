@@ -6,7 +6,8 @@ import {
   RoomAudioRenderer,
   GridLayout,
   ParticipantTile,
-  useTracks
+  useTracks,
+  DisconnectButton
 } from '@livekit/components-react';
 import '@livekit/components-styles';
 import { useSearchParams } from 'next/navigation';
@@ -15,14 +16,19 @@ import { Track } from 'livekit-client';
 
 import Logger from '@/lib/logger';
 
-function CustomConference() {
+function CustomConference({ isBroadcaster }: { isBroadcaster: boolean }) {
   const tracks = useTracks([
     { source: Track.Source.Microphone, withPlaceholder: true },
   ]);
 
+  // リスナーの場合はホストのトラックのみを表示
+  const filteredTracks = isBroadcaster 
+    ? tracks 
+    : tracks.filter(t => t.participant.identity.endsWith('-host'));
+
   return (
     <div className="custom-conference">
-      <GridLayout tracks={tracks}>
+      <GridLayout tracks={filteredTracks}>
         <ParticipantTile />
       </GridLayout>
       
@@ -42,10 +48,10 @@ function CustomConference() {
           border: none;
         }
         .custom-conference .lk-participant-tile {
-          width: 240px !important;
-          height: 240px !important;
+          width: 280px !important;
+          height: 280px !important;
           flex: none !important;
-          border-radius: 24px;
+          border-radius: 32px;
           background: rgba(15, 15, 25, 0.8) !important;
           backdrop-filter: blur(12px);
           border: 1px solid rgba(255, 255, 255, 0.1) !important;
@@ -60,14 +66,28 @@ function CustomConference() {
         .custom-conference .lk-participant-name {
           font-weight: 600;
           font-size: 0.9rem;
-          bottom: 12px;
-          left: 12px;
-          background: rgba(0, 0, 0, 0.5);
-          padding: 4px 10px;
-          border-radius: 8px;
+          bottom: 16px;
+          left: 16px;
+          background: rgba(0, 0, 0, 0.6);
+          padding: 6px 12px;
+          border-radius: 10px;
         }
         .custom-conference .lk-audio-visualizer {
           opacity: 0.8;
+        }
+        .lk-disconnect-button {
+          background-color: #ff4b4b !important;
+          color: white !important;
+          border-radius: 50px !important;
+          padding: 0.8rem 2rem !important;
+          font-weight: bold !important;
+          border: none !important;
+          transition: transform 0.2s, background-color 0.2s !important;
+          cursor: pointer !important;
+        }
+        .lk-disconnect-button:hover {
+          background-color: #ff3333 !important;
+          transform: scale(1.05);
         }
       `}</style>
     </div>
@@ -268,13 +288,18 @@ function LivePageContent() {
         }}
       >
         <div style={{ padding: '2rem', height: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
-          <div style={{ fontSize: '4rem', marginBottom: '1rem' }}>{isBroadcaster ? '🎙️' : '🎧'}</div>
-          <h2 style={{ marginBottom: '0.5rem', fontSize: '1.8rem' }}>
-            {isBroadcaster ? '配信中' : 'ライブを聴取中'}
-          </h2>
-          <p style={{ color: 'var(--text-muted)', marginBottom: '2rem', fontSize: '1rem' }}>
-            {isBroadcaster ? 'あなたの声がリスナーに届いています' : '配信者の声を楽しんでいます'}
-          </p>
+          {/* 配信者、またはオーディオ開始前のリスナーのみヘッダー情報を表示 */}
+          {(isBroadcaster || !isAudioEnabled) && (
+            <>
+              <div style={{ fontSize: '4rem', marginBottom: '1rem' }}>{isBroadcaster ? '🎙️' : '🎧'}</div>
+              <h2 style={{ marginBottom: '0.5rem', fontSize: '1.8rem' }}>
+                {isBroadcaster ? '配信中' : 'ライブを聴取中'}
+              </h2>
+              <p style={{ color: 'var(--text-muted)', marginBottom: '2rem', fontSize: '1rem' }}>
+                {isBroadcaster ? 'あなたの声がリスナーに届いています' : '配信者の声を楽しんでいます'}
+              </p>
+            </>
+          )}
 
           {!isBroadcaster && !isAudioEnabled ? (
             <button 
@@ -296,8 +321,12 @@ function LivePageContent() {
             </button>
           ) : (
             <>
-              <CustomConference />
+              <CustomConference isBroadcaster={isBroadcaster} />
               <RoomAudioRenderer />
+              
+              <div style={{ marginTop: '2.5rem' }}>
+                <DisconnectButton>退出する</DisconnectButton>
+              </div>
             </>
           )}
         </div>
