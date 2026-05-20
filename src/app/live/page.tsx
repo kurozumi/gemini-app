@@ -285,6 +285,18 @@ function LivePageContent() {
 
   if (!token || !url) {
     const isHostInit = searchParams.get('role') === 'host' && !searchParams.get('room');
+    const isAutoJoining = searchParams.get('room') && searchParams.get('role');
+
+    // 自動接続中（リスナー等）はローディングを表示
+    if (isAutoJoining || isConnecting) {
+      return (
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '60vh' }}>
+          <div style={{ fontSize: '3rem', marginBottom: '1.5rem' }}>⏳</div>
+          <h2 style={{ fontSize: '1.5rem', fontWeight: 'bold' }}>接続中...</h2>
+          <p style={{ color: 'var(--text-muted)', marginTop: '0.5rem' }}>ライブルームに入室しています</p>
+        </div>
+      );
+    }
     
     return (
       <div style={{ padding: '4rem 0', maxWidth: '450px', margin: '0 auto' }}>
