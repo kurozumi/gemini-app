@@ -18,6 +18,8 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: 'Server misconfigured' }, { status: 500 });
   }
 
+  console.log(`[token] room=${room} username=${username} role=${role}`);
+
   const at = new AccessToken(apiKey, apiSecret, {
     identity: username,
     name: username,
