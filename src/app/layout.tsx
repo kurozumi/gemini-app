@@ -1,7 +1,5 @@
 import type { Metadata } from "next";
 import "./globals.css";
-import { PlayerProvider } from "@/lib/PlayerContext";
-import { PlayerUI } from "@/components/PlayerUI";
 
 export const metadata: Metadata = {
   title: "コエトバ | 声で、つながる匿名音声掲示板",
@@ -25,25 +23,23 @@ export default function RootLayout({
   return (
     <html lang="ja" suppressHydrationWarning>
       <body>
-        <PlayerProvider>
-          <header className="header">
-            <div className="container headerInner">
-              <h1 style={{ fontSize: '1.25rem', fontWeight: 'bold', margin: 0, color: 'var(--primary)' }}>
-                <a href="/">コエトバ</a>
-              </h1>
-              <nav>
-                <ul className="navList">
-                  <li><a href="/">ホーム</a></li>
-                  <li><a href="/live">ライブ</a></li>
-                </ul>
-              </nav>
-            </div>
-          </header>
+        <header className="header">
+          <div className="container headerInner">
+            <h1 style={{ fontSize: '1.25rem', fontWeight: 'bold', margin: 0, color: 'var(--primary)' }}>
+              <a href="/">コエトバ</a>
+            </h1>
+            <nav>
+              <ul className="navList">
+                <li><a href="/">ホーム</a></li>
+                <li><a href="/live">ライブ</a></li>
+              </ul>
+            </nav>
+          </div>
+        </header>
 
-          <main className="container">
-            {children}
-          </main>
-        </PlayerProvider>
+        <main className="container">
+          {children}
+        </main>
       </body>
     </html>
   );
