@@ -1,20 +1,22 @@
 import { NextResponse } from 'next/server';
-import fs from 'fs';
-import path from 'path';
 
 export async function POST(request: Request) {
   try {
     const { level, message, data } = await request.json();
-    const logFile = path.join(process.cwd(), 'debug.log');
     const timestamp = new Date().toLocaleString('ja-JP');
-    const logEntry = `[${timestamp}] [${level.toUpperCase()}] ${message} ${data ? JSON.stringify(data) : ''}\n`;
+    const logEntry = `[${timestamp}] [${level.toUpperCase()}] ${message} ${data ? JSON.stringify(data) : ''}`;
 
-    console.log('Writing to log file:', logEntry); // サーバー側のコンソールにも出す
-    fs.appendFileSync(logFile, logEntry, { encoding: 'utf8' });
-    
+    if (level === 'error') {
+      console.error(logEntry);
+    } else if (level === 'warn') {
+      console.warn(logEntry);
+    } else {
+      console.log(logEntry);
+    }
+
     return NextResponse.json({ success: true });
-  } catch (error: any) {
-    console.error('Failed to write log:', error.message);
-    return NextResponse.json({ success: false, error: error.message }, { status: 500 });
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : String(error);
+    return NextResponse.json({ success: false, error: message }, { status: 500 });
   }
 }
