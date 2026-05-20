@@ -76,7 +76,7 @@ export default function LiveRoomList() {
       {rooms.map((room) => (
         <Link 
           key={room.id} 
-          href={`/live?room=${encodeURIComponent(room.name)}`}
+          href={`/live?room=${encodeURIComponent(room.name)}&role=listener`}
           style={{ textDecoration: 'none', color: 'inherit' }}
         >
           <div style={{ 
