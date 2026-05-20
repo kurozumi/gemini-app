@@ -59,6 +59,23 @@ function CustomConference({ isBroadcaster }: { isBroadcaster: boolean }) {
           box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
           transition: all 0.3s ease;
         }
+        @media (max-height: 800px) {
+          .custom-conference .lk-participant-tile {
+            width: 200px !important;
+            height: 200px !important;
+            border-radius: 24px;
+          }
+          .custom-conference .lk-grid-layout {
+            gap: 1rem;
+          }
+        }
+        @media (max-width: 480px) {
+          .custom-conference .lk-participant-tile {
+            width: 160px !important;
+            height: 160px !important;
+            border-radius: 20px;
+          }
+        }
         .custom-conference .lk-participant-tile:hover {
           transform: translateY(-5px);
           border-color: var(--primary) !important;
@@ -307,7 +324,7 @@ function LivePageContent() {
   }
 
   return (
-    <div style={{ padding: '1rem 0', minHeight: 'calc(100vh - 180px)', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+    <div style={{ padding: '1rem 0', minHeight: 'calc(100vh - 180px)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
       <LiveKitRoom
         video={false}
         audio={isBroadcaster}
@@ -328,21 +345,23 @@ function LivePageContent() {
           borderRadius: '16px', 
           overflow: 'hidden', 
           border: '1px solid var(--border)', 
-          backgroundColor: 'var(--card-bg)' 
+          backgroundColor: 'var(--card-bg)',
+          display: 'flex',
+          flexDirection: 'column'
         }}
       >
-        <div style={{ padding: '2rem', height: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
+        <div className="live-container" style={{ padding: '1.5rem', flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', overflowY: 'auto' }}>
           {/* 配信者、またはオーディオ開始前のリスナーのみヘッダー情報を表示 */}
           {(isBroadcaster || !isAudioEnabled) && (
-            <>
-              <div style={{ fontSize: '4rem', marginBottom: '1rem' }}>{isBroadcaster ? '🎙️' : '🎧'}</div>
-              <h2 style={{ marginBottom: '0.5rem', fontSize: '1.8rem' }}>
+            <div className="live-header" style={{ textAlign: 'center' }}>
+              <div className="live-icon" style={{ fontSize: '4rem', marginBottom: '1rem' }}>{isBroadcaster ? '🎙️' : '🎧'}</div>
+              <h2 className="live-title" style={{ marginBottom: '0.5rem', fontSize: '1.8rem' }}>
                 {isBroadcaster ? '配信中' : 'ライブを聴取中'}
               </h2>
-              <p style={{ color: 'var(--text-muted)', marginBottom: '2rem', fontSize: '1rem' }}>
+              <p className="live-description" style={{ color: 'var(--text-muted)', marginBottom: '2rem', fontSize: '1rem' }}>
                 {isBroadcaster ? 'あなたの声がリスナーに届いています' : '配信者の声を楽しんでいます'}
               </p>
-            </>
+            </div>
           )}
 
           {!isBroadcaster && !isAudioEnabled ? (
@@ -368,8 +387,8 @@ function LivePageContent() {
               <CustomConference isBroadcaster={isBroadcaster} />
               <RoomAudioRenderer />
               
-              <div style={{ 
-                marginTop: '2.5rem', 
+              <div className="live-controls" style={{ 
+                marginTop: '2rem', 
                 display: 'flex', 
                 alignItems: 'center', 
                 gap: '1rem',
@@ -382,6 +401,7 @@ function LivePageContent() {
 
                 <button
                   onClick={handleShare}
+                  className="share-button"
                   style={{
                     backgroundColor: 'rgba(255, 255, 255, 0.1)',
                     color: 'white',
@@ -406,6 +426,15 @@ function LivePageContent() {
             </>
           )}
         </div>
+        <style jsx>{`
+          @media (max-height: 750px) {
+            .live-container { padding: 1rem !important; }
+            .live-icon { fontSize: 2.5rem !important; margin-bottom: 0.5rem !important; }
+            .live-title { font-size: 1.4rem !important; margin-bottom: 0.25rem !important; }
+            .live-description { margin-bottom: 1rem !important; font-size: 0.9rem !important; }
+            .live-controls { margin-top: 1.5rem !important; }
+          }
+        `}</style>
       </LiveKitRoom>
     </div>
   );
