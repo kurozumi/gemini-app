@@ -3,14 +3,76 @@
 import React, { useState, useEffect, useCallback, Suspense } from 'react';
 import { 
   LiveKitRoom, 
-  AudioConference, 
-  RoomAudioRenderer
+  RoomAudioRenderer,
+  GridLayout,
+  ParticipantTile,
+  useTracks
 } from '@livekit/components-react';
 import '@livekit/components-styles';
 import { useSearchParams } from 'next/navigation';
 import { supabase } from '@/lib/supabase/client';
+import { Track } from 'livekit-client';
 
 import Logger from '@/lib/logger';
+
+function CustomConference() {
+  const tracks = useTracks([
+    { source: Track.Source.Microphone, withPlaceholder: true },
+  ]);
+
+  return (
+    <div className="custom-conference">
+      <GridLayout tracks={tracks}>
+        <ParticipantTile />
+      </GridLayout>
+      
+      <style jsx global>{`
+        .custom-conference {
+          width: 100%;
+          max-width: 700px;
+          margin: 0 auto;
+        }
+        .custom-conference .lk-grid-layout {
+          display: flex !important;
+          flex-wrap: wrap;
+          justify-content: center;
+          align-items: center;
+          gap: 2rem;
+          background: transparent;
+          border: none;
+        }
+        .custom-conference .lk-participant-tile {
+          width: 240px !important;
+          height: 240px !important;
+          flex: none !important;
+          border-radius: 24px;
+          background: rgba(15, 15, 25, 0.8) !important;
+          backdrop-filter: blur(12px);
+          border: 1px solid rgba(255, 255, 255, 0.1) !important;
+          box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+          transition: all 0.3s ease;
+        }
+        .custom-conference .lk-participant-tile:hover {
+          transform: translateY(-5px);
+          border-color: var(--primary) !important;
+          box-shadow: 0 15px 40px rgba(0, 0, 0, 0.6), 0 0 15px rgba(var(--primary-rgb), 0.3);
+        }
+        .custom-conference .lk-participant-name {
+          font-weight: 600;
+          font-size: 0.9rem;
+          bottom: 12px;
+          left: 12px;
+          background: rgba(0, 0, 0, 0.5);
+          padding: 4px 10px;
+          border-radius: 8px;
+        }
+        .custom-conference .lk-audio-visualizer {
+          opacity: 0.8;
+        }
+      `}</style>
+    </div>
+  );
+}
 
 function LivePageContent() {
   const searchParams = useSearchParams();
@@ -234,10 +296,7 @@ function LivePageContent() {
             </button>
           ) : (
             <>
-              <div style={{ width: '100%', maxWidth: '600px', marginBottom: '1.5rem' }}>
-                <AudioConference />
-              </div>
-              
+              <CustomConference />
               <RoomAudioRenderer />
             </>
           )}
