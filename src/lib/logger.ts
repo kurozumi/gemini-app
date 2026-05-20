@@ -1,7 +1,7 @@
 type LogLevel = 'info' | 'warn' | 'error';
 
 class Logger {
-  private static async sendToServer(level: LogLevel, message: string, data?: any) {
+  private static async sendToServer(level: LogLevel, message: string, data?: unknown) {
     // 開発環境のみコンソールにも出力
     if (process.env.NODE_ENV === 'development') {
       console[level](`[${level.toUpperCase()}] ${message}`, data || '');
@@ -13,20 +13,20 @@ class Logger {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ level, message, data }),
       });
-    } catch (e) {
+    } catch {
       // API自体が死んでいる場合は無視
     }
   }
 
-  static info(message: string, data?: any) {
+  static info(message: string, data?: unknown) {
     this.sendToServer('info', message, data);
   }
 
-  static warn(message: string, data?: any) {
+  static warn(message: string, data?: unknown) {
     this.sendToServer('warn', message, data);
   }
 
-  static error(message: string, data?: any) {
+  static error(message: string, data?: unknown) {
     this.sendToServer('error', message, data);
   }
 }
