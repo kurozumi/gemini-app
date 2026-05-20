@@ -29,12 +29,6 @@ export default function RootLayout({
             <h1 style={{ fontSize: '1.25rem', fontWeight: 'bold', margin: 0, color: 'var(--primary)' }}>
               <Link href="/">コエトバ</Link>
             </h1>
-            <nav>
-              <ul className="navList">
-                <li><Link href="/">ホーム</Link></li>
-                <li><Link href="/live">ライブ</Link></li>
-              </ul>
-            </nav>
           </div>
         </header>
 
