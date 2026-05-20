@@ -20,13 +20,15 @@
 | レスポンシブ対応 | PCからスマホ、13インチモニターまで最適化された表示 |
 | iOS対応 | iOS SafariのAutoPlay制限を回避する手動オーディオアンロック |
 | サーバーサイドログ | `/api/logs` への非同期ロギングでブラウザ外のエラーも捕捉 |
+| 自動テスト (CI) | GitHub Actions による自動 Lint およびテスト実行環境 |
 
 ## 技術スタック
 
 - **Framework:** Next.js (App Router)
 - **Streaming:** LiveKit Cloud
 - **Database / Real-time:** Supabase
-- **Hosting:** Vercel
+- **Testing:** Vitest, Playwright
+- **CI/CD:** GitHub Actions, Vercel
 
 ---
 
@@ -46,7 +48,7 @@
 
 1. [Supabase](https://supabase.com/) にログインし、新しいプロジェクトを作成します。
 2. **Project Settings > API** から以下の情報を取得します。
-   - **Project URL:** `https://...supabase.co`
+   - **Project URL (RESTful endpoint):** `https://...supabase.co`
    - **anon public:** 公開用APIキー
 3. **SQL Editor** を開き、以下のSQLを実行してテーブルを作成します。
    ```sql
@@ -69,9 +71,9 @@
    notify pgrst, 'reload schema';
    ```
 
-### 3. Vercel への環境変数設定
+### 3. 環境変数の設定 (Vercel & GitHub Actions)
 
-Vercelのプロジェクト設定（Settings > Environment Variables）に以下の 5 つを追加します。
+Vercelのプロジェクト設定、およびGitHubの **Settings > Secrets and variables > Actions** に以下の 5 つを登録します。
 
 | Key | Value (例) |
 | :--- | :--- |
@@ -80,6 +82,8 @@ Vercelのプロジェクト設定（Settings > Environment Variables）に以下
 | `NEXT_PUBLIC_LIVEKIT_URL` | `wss://your-project.livekit.cloud` |
 | `NEXT_PUBLIC_SUPABASE_URL` | `https://your-project.supabase.co` |
 | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | (Supabase anon key) |
+
+> **重要:** GitHubに登録する際の `NEXT_PUBLIC_SUPABASE_URL` は、末尾の `/rest/v1/` を含めないように注意してください。
 
 ### 4. LiveKit Webhook の設定（ルーム自動クリーンアップ）
 
@@ -94,7 +98,30 @@ Vercelのプロジェクト設定（Settings > Environment Variables）に以下
    | URL | `https://your-domain.vercel.app/api/livekit/webhook` |
    | Events | `room_finished`, `participant_left` |
 
-> **注意:** Webhook URLは本番環境（Vercelの本番URL）を使用してください。ローカル開発環境ではlocalhost宛にLiveKitからリクエストを送れないため、[ngrok](https://ngrok.com/) 等でトンネルを作成する必要があります。
+---
+
+## テスト
+
+本プロジェクトでは、コードの品質と動作を保証するためにテストを導入しています。
+
+### 単体テスト (Vitest)
+ロジックやユーティリティ関数のテストです。
+```bash
+npm run test
+```
+
+### E2Eテスト (Playwright)
+実際のブラウザを使用した動作確認テストです。実行には環境変数が必要です。
+```bash
+# ブラウザのインストール (初回のみ)
+npx playwright install
+
+# テスト実行
+npm run test:e2e
+
+# UIモードでの実行
+npm run test:e2e:ui
+```
 
 ---
 
@@ -107,13 +134,13 @@ Vercelのプロジェクト設定（Settings > Environment Variables）に以下
   │    ├─ 配信開始 → POST /api/livekit/token (トークン取得)
   │    ├─ 配信開始 → Supabase.rooms に INSERT
   │    ├─ 離脱時   → POST /api/live/cleanup (即時削除、keepalive通信)
-  │    └─ 離脱警告 → beforeunload イベントでの誤操作防止
+  │    └─ 離脱警告 → pagehide / beforeunload イベントでの保護
   │
   ├─ /             トップページ（ライブ一覧）
   │    ├─ 表示時   → GET /api/live/sync (LiveKitサーバーの実態と同期)
   │    └─ Supabase リアルタイム購読でルーム一覧を自動更新
   │
-  └─ /api/livekit/webhook  LiveKitイベント受信（participant_left等） → ルーム強制クリーンアップ
+  └─ /api/livekit/webhook  LiveKitイベント受信 → ホスト離脱時にルーム強制クリーンアップ
 ```
 
 ---
@@ -122,31 +149,15 @@ Vercelのプロジェクト設定（Settings > Environment Variables）に以下
 
 ### Q. 「Could not find the 'host_name' (または 'name') column」と表示される
 **A. Supabaseのキャッシュリセットが必要です。**
-SQL Editor で `notify pgrst, 'reload schema';` を実行してください。これにより Supabase の API が最新のテーブル構造を認識します。
-
-### Q. 「new row violates row-level security policy」と表示される
-**A. 権限設定が不足しています。**
-SQL Editor で以下の 2 行を実行してください：
-```sql
-alter table rooms disable row level security;
-grant all on table rooms to anon, authenticated, service_role;
-```
+SQL Editor で `notify pgrst, 'reload schema';` を実行してください。
 
 ### Q. 環境変数を設定したのに接続できない
 **A. 再デプロイ（Redeploy）が必要です。**
-Vercelでは環境変数を追加しただけでは実行中のアプリに反映されません。`Deployments` タブから最新のビルドの `...` メニューを開き、**Redeploy** を実行してください。
-
-### Q. トップページに配信中リストが表示されない
-**A. 実際に「配信者」としてライブを開始しているか確認してください。**
-現在の仕様では、誰かが「配信者」として接続している間だけリストに表示されます。また、ブラウザのコンソール（F12）にエラーが出ていないか確認してください。
-
-### Q. iPhoneで音が聞こえない
-**A. ユーザー操作（タップ）が必要です。**
-iOS Safari等のブラウザでは、自動再生が厳しく制限されています。リスナーとして入室した後、画面に表示される **「🔊 ライブを聴く」** ボタンを必ずタップしてください。
+Vercelの `Deployments` タブから最新のビルドに対して **Redeploy** を実行してください。
 
 ### Q. 配信を終了してもルーム一覧に残り続ける
-**A. 本システムは3段構えで対応していますが、Webhookが未設定の場合は、ブラウザを閉じると数分残る場合があります。**
-LiveKit の Webhook（`/api/livekit/webhook`）を設定することで、より即座に自動削除されます。設定手順は「[LiveKit Webhook の設定](#4-livekit-webhook-の設定ルーム自動クリーンアップ)」を参照してください。
+**A. LiveKit Webhook が正しく設定されているか確認してください。**
+また、開発環境では `pagehide` イベントがブラウザによって制限される場合があります。本番環境での動作を確認してください。
 
 ---
 
