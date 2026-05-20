@@ -39,13 +39,13 @@ export default function LiveRoomList() {
 
     const subscription = supabase
       .channel('public:rooms')
-      .on('postgres_changes', { event: '*', table: 'rooms', schema: 'public' }, (payload: { eventType: string; new: Record<string, any>; old: Record<string, any> }) => {
+      .on('postgres_changes', { event: '*', table: 'rooms', schema: 'public' }, (payload: { eventType: string; new: Room; old: { id: string } }) => {
         if (payload.eventType === 'INSERT') {
-          setRooms((prev) => [payload.new as Room, ...prev]);
+          setRooms((prev) => [payload.new, ...prev]);
         } else if (payload.eventType === 'DELETE') {
           setRooms((prev) => prev.filter((room) => room.id !== payload.old.id));
         } else if (payload.eventType === 'UPDATE') {
-          setRooms((prev) => prev.map((room) => (room.id === payload.new.id ? (payload.new as Room) : room)));
+          setRooms((prev) => prev.map((room) => (room.id === payload.new.id ? payload.new : room)));
         }
       })
       .subscribe();

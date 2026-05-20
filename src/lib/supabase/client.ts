@@ -6,4 +6,4 @@ const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 // ビルド時に環境変数がなくてもエラーにならないようにガード
 export const supabase = supabaseUrl && supabaseAnonKey 
   ? createClient(supabaseUrl, supabaseAnonKey) 
-  : (null as any); // クライアントサイドでの実行時には必ず存在することを想定
+  : (null as unknown as ReturnType<typeof createClient>); // クライアントサイドでの実行時には必ず存在することを想定
