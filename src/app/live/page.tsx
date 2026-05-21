@@ -480,18 +480,28 @@ function LivePageContent() {
 
           {!isBroadcaster && !isAudioEnabled ? (
             <div style={{ textAlign: 'center' }}>
-              <p style={{ 
-                color: '#ff4b4b', 
-                fontSize: '0.9rem', 
-                fontWeight: 'bold', 
-                marginBottom: '1rem',
+              <div style={{ 
+                marginBottom: '1.5rem',
                 backgroundColor: 'rgba(255, 75, 75, 0.1)',
-                padding: '0.75rem 1.5rem',
-                borderRadius: '12px',
-                border: '1px solid rgba(255, 75, 75, 0.2)'
+                padding: '0.8rem 1.5rem',
+                borderRadius: '16px',
+                border: '1px solid rgba(255, 75, 75, 0.2)',
+                display: 'inline-flex',
+                alignItems: 'flex-start',
+                gap: '0.6rem',
+                textAlign: 'left'
               }}>
-                ⚠️ スピーカーから音声が流れます。<br />イヤホン推奨
-              </p>
+                <span style={{ fontSize: '1.1rem', marginTop: '-2px' }}>⚠️</span>
+                <p style={{ 
+                  color: '#ff4b4b', 
+                  fontSize: '0.9rem', 
+                  fontWeight: 'bold', 
+                  margin: 0,
+                  lineHeight: '1.5'
+                }}>
+                  スピーカーから音声が流れます。<br />イヤホン推奨
+                </p>
+              </div>
               <button 
                 onClick={handleStartAudio}
                 style={{ 
