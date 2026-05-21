@@ -24,10 +24,10 @@ export async function POST(req: NextRequest) {
 
     // room_finished の場合、またはホストが退出した（participant_left）場合にルームを削除
     if (roomId && (event.event === 'room_finished' || isHost)) {
-      const supabase = createClient(
-        process.env.NEXT_PUBLIC_SUPABASE_URL!,
-        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-      );
+      const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+      const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
+      
+      const supabase = createClient(supabaseUrl, supabaseKey);
       await supabase.from('rooms').delete().eq('id', roomId);
     }
   }
