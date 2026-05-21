@@ -52,9 +52,11 @@
 2. **Project Settings > API** から以下の情報を取得します。
    - **Project URL (RESTful endpoint):** `https://...supabase.co`
    - **anon public:** 公開用APIキー
-3. **SQL Editor** を開き、以下のSQLを実行してテーブルを作成します。
+   - **service_role secret:** サーバーサイド用秘密鍵（`SUPABASE_SERVICE_ROLE_KEY` として使用）
+3. **SQL Editor** を開き、以下のSQLを実行してテーブルとセキュリティ設定を作成します。
+
    ```sql
-   -- 配信ルームを管理するテーブルを作成
+   -- 1. 配信ルーム管理テーブルの作成
    create table rooms (
      id uuid default gen_random_uuid() primary key,
      name text not null,
@@ -62,14 +64,32 @@
      created_at timestamp with time zone default now()
    );
 
-   -- リアルタイム機能を有効化
+   -- 2. アプリ設定管理テーブルの作成
+   create table app_config (
+     key text primary key,
+     value text not null,
+     updated_at timestamp with time zone default now()
+   );
+
+   -- 3. リアルタイム機能の有効化
    alter publication supabase_realtime add table rooms;
 
-   -- 匿名ユーザーの読み書きを許可 (RLSの無効化と権限付与)
-   alter table rooms disable row level security;
-   grant all on table rooms to anon, authenticated, service_role;
+   -- 4. 行レベルセキュリティ (RLS) の有効化
+   alter table rooms enable row level security;
+   alter table app_config enable row level security;
 
-   -- キャッシュを強制リセット
+   -- 5. セキュリティポリシーの設定
+   -- 誰でもルーム一覧を見られる
+   create policy "Anyone can select rooms" on rooms for select using (true);
+   -- 誰でもルームを作れる
+   create policy "Anyone can insert rooms" on rooms for insert with check (true);
+   -- 誰でも設定値を読み取れる
+   create policy "Anyone can select config" on app_config for select using (true);
+
+   -- 6. 初期データ投入
+   insert into app_config (key, value) values ('is_maintenance', 'false');
+
+   -- 7. キャッシュを強制リセット
    notify pgrst, 'reload schema';
    ```
 
