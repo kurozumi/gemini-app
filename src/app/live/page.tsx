@@ -9,7 +9,8 @@ import {
   useTracks,
   DisconnectButton,
   TrackToggle,
-  useParticipants
+  useParticipants,
+  useRoomContext
 } from '@livekit/components-react';
 import '@livekit/components-styles';
 import { useSearchParams, useRouter } from 'next/navigation';
@@ -19,6 +20,87 @@ import { getPersistentUserId } from '@/lib/utils';
 import { Chat } from '@/components/Chat';
 
 import Logger from '@/lib/logger';
+
+export function AudioOutputToggle() {
+  const room = useRoomContext();
+  const [isSpeaker, setIsSpeaker] = useState(false); // デフォルトをイヤースピーカー（スピーカーOFF）に
+  const [canSwitch, setCanSwitch] = useState(false);
+
+  useEffect(() => {
+    const checkSupport = async () => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const mediaDevices = navigator.mediaDevices as any;
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const isSupported = !!mediaDevices.selectAudioOutput || !!(HTMLAudioElement.prototype as any).setSinkId;
+      setCanSwitch(isSupported);
+      
+      if (isSupported) {
+        // 初回入室時にイヤースピーカーへの切り替えを試みる
+        try {
+          const devices = await navigator.mediaDevices.enumerateDevices();
+          const earpiece = devices.find(d => 
+            d.kind === 'audiooutput' && 
+            (d.label.toLowerCase().includes('earpiece') || d.label.toLowerCase().includes('receiver') || d.label.includes('受話'))
+          );
+          if (earpiece) {
+            await room.setAudioOutput(earpiece.deviceId);
+            Logger.info('Defaulted to earpiece', { label: earpiece.label });
+          }
+        } catch (err) {
+          console.warn('Failed to set default audio output:', err);
+        }
+      }
+    };
+    checkSupport();
+  }, [room]);
+
+  const toggleOutput = async () => {
+    try {
+      const devices = await navigator.mediaDevices.enumerateDevices();
+      const audioOutputs = devices.filter(d => d.kind === 'audiooutput');
+      
+      // スピーカーとイヤースピーカーを判別するロジック
+      // 注: ブラウザやOSによってデバイス名のラベルは異なります
+      const speaker = audioOutputs.find(d => d.label.toLowerCase().includes('speaker') || d.label.includes('スピーカー'));
+      const earpiece = audioOutputs.find(d => d.label.toLowerCase().includes('earpiece') || d.label.toLowerCase().includes('receiver') || d.label.includes('受話'));
+
+      const nextMode = !isSpeaker;
+      const targetDevice = nextMode ? (speaker || audioOutputs[0]) : (earpiece || audioOutputs[0]);
+
+      if (targetDevice) {
+        await room.setAudioOutput(targetDevice.deviceId);
+        setIsSpeaker(nextMode);
+        Logger.info('Audio output switched', { mode: nextMode ? 'speaker' : 'earpiece', label: targetDevice.label });
+      }
+    } catch (err) {
+      Logger.error('Failed to switch audio output', { error: err });
+    }
+  };
+
+  if (!canSwitch) return null;
+
+  return (
+    <button
+      onClick={toggleOutput}
+      style={{
+        backgroundColor: 'rgba(255, 255, 255, 0.1)',
+        color: 'white',
+        borderRadius: '50px',
+        padding: '0.8rem 1.5rem',
+        fontWeight: 'bold',
+        border: '1px solid rgba(255, 255, 255, 0.1)',
+        cursor: 'pointer',
+        display: 'flex',
+        alignItems: 'center',
+        gap: '0.5rem',
+        transition: 'all 0.2s'
+      }}
+      title={isSpeaker ? 'イヤースピーカーに切り替え' : 'スピーカーに切り替え'}
+    >
+      <span>{isSpeaker ? '📢 スピーカー' : '👂 イヤースピーカー'}</span>
+    </button>
+  );
+}
 
 function CustomConference() {
   const tracks = useTracks([
@@ -559,6 +641,8 @@ function LivePageContent() {
                 >
                   <span>{isCopied ? 'コピーしました！' : '🔗 共有する'}</span>
                 </button>
+
+                {!isBroadcaster && <AudioOutputToggle />}
 
                 <DisconnectButton>退出する</DisconnectButton>
               </div>
