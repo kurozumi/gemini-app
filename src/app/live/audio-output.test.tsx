@@ -49,7 +49,7 @@ describe('AudioOutputToggle Component', () => {
     // useEffect の完了を待つ（jsdom環境では即時）
     const button = await screen.findByRole('button');
     expect(button).toBeDefined();
-    // デフォルト（isSpeaker: false）のテキストを確認
-    expect(screen.getByText('👂 イヤースピーカー')).toBeDefined();
+    // アイコン（👂）が表示されていることを確認（テキストが削除されたため）
+    expect(screen.getByText('👂')).toBeDefined();
   });
 });

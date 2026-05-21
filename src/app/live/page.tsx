@@ -40,10 +40,15 @@ export function AudioOutputToggle() {
           const devices = await navigator.mediaDevices.enumerateDevices();
           const earpiece = devices.find(d => 
             d.kind === 'audiooutput' && 
-            (d.label.toLowerCase().includes('earpiece') || d.label.toLowerCase().includes('receiver') || d.label.includes('受話'))
+            (d.label.toLowerCase().includes('earpiece') || 
+             d.label.toLowerCase().includes('receiver') || 
+             d.label.toLowerCase().includes('phone') ||
+             d.label.includes('受話') ||
+             d.label.includes('本体'))
           );
           if (earpiece) {
             await room.setAudioOutput(earpiece.deviceId);
+            setIsSpeaker(false);
             Logger.info('Defaulted to earpiece', { label: earpiece.label });
           }
         } catch (err) {
@@ -59,10 +64,14 @@ export function AudioOutputToggle() {
       const devices = await navigator.mediaDevices.enumerateDevices();
       const audioOutputs = devices.filter(d => d.kind === 'audiooutput');
       
-      // スピーカーとイヤースピーカーを判別するロジック
-      // 注: ブラウザやOSによってデバイス名のラベルは異なります
       const speaker = audioOutputs.find(d => d.label.toLowerCase().includes('speaker') || d.label.includes('スピーカー'));
-      const earpiece = audioOutputs.find(d => d.label.toLowerCase().includes('earpiece') || d.label.toLowerCase().includes('receiver') || d.label.includes('受話'));
+      const earpiece = audioOutputs.find(d => 
+        d.label.toLowerCase().includes('earpiece') || 
+        d.label.toLowerCase().includes('receiver') || 
+        d.label.toLowerCase().includes('phone') ||
+        d.label.includes('受話') ||
+        d.label.includes('本体')
+      );
 
       const nextMode = !isSpeaker;
       const targetDevice = nextMode ? (speaker || audioOutputs[0]) : (earpiece || audioOutputs[0]);
@@ -83,21 +92,23 @@ export function AudioOutputToggle() {
     <button
       onClick={toggleOutput}
       style={{
-        backgroundColor: 'rgba(255, 255, 255, 0.1)',
+        backgroundColor: isSpeaker ? 'var(--primary)' : 'rgba(255, 255, 255, 0.1)',
         color: 'white',
-        borderRadius: '50px',
-        padding: '0.8rem 1.5rem',
-        fontWeight: 'bold',
+        borderRadius: '50%',
+        width: '50px',
+        height: '50px',
+        padding: 0,
+        display: 'flex',
+        justifyContent: 'center',
+        alignItems: 'center',
         border: '1px solid rgba(255, 255, 255, 0.1)',
         cursor: 'pointer',
-        display: 'flex',
-        alignItems: 'center',
-        gap: '0.5rem',
-        transition: 'all 0.2s'
+        transition: 'all 0.2s',
+        fontSize: '1.2rem'
       }}
       title={isSpeaker ? 'イヤースピーカーに切り替え' : 'スピーカーに切り替え'}
     >
-      <span>{isSpeaker ? '📢 スピーカー' : '👂 イヤースピーカー'}</span>
+      <span>{isSpeaker ? '📢' : '👂'}</span>
     </button>
   );
 }
