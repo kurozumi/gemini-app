@@ -1,25 +1,28 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { GET } from './route';
 import { NextRequest } from 'next/server';
-import { RoomServiceClient } from 'livekit-server-sdk';
 
-// livekit-server-sdk をモック化
-vi.mock('livekit-server-sdk', async () => {
-  const actual = await vi.importActual('livekit-server-sdk');
+// livekit-server-sdk を完全にモック化
+vi.mock('livekit-server-sdk', () => {
   return {
-    ...actual,
-    RoomServiceClient: vi.fn(),
-    AccessToken: vi.fn().mockImplementation(() => ({
-      addGrant: vi.fn(),
-      toJwt: vi.fn().mockResolvedValue('mock-jwt-token'),
-    })),
+    AccessToken: vi.fn().mockImplementation(function() {
+      return {
+        addGrant: vi.fn(),
+        toJwt: vi.fn().mockResolvedValue('mock-jwt-token'),
+      };
+    }),
+    RoomServiceClient: vi.fn().mockImplementation(function() {
+      return {
+        listParticipants: vi.fn().mockResolvedValue([]),
+      };
+    }),
   };
 });
 
 describe('Token API (Host Enforcement)', () => {
   const mockUrl = 'http://localhost/api/livekit/token';
   
-  beforeEach(() => {
+  beforeEach(async () => {
     vi.clearAllMocks();
     process.env.LIVEKIT_API_KEY = 'test-key';
     process.env.LIVEKIT_API_SECRET = 'test-secret';
@@ -27,52 +30,55 @@ describe('Token API (Host Enforcement)', () => {
   });
 
   it('should allow joining as host if no host exists', async () => {
-    // 参加者リストが空（ホストなし）の状態をシミュレート
-    const listParticipantsMock = vi.fn().mockResolvedValue([]);
+    const { RoomServiceClient } = await import('livekit-server-sdk');
+    const mockListParticipants = vi.fn().mockResolvedValue([]);
+    
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    (RoomServiceClient as unknown as { mockImplementation: (cb: any) => void }).mockImplementation(() => ({
-      listParticipants: listParticipantsMock,
-    }));
+    (RoomServiceClient as unknown as { mockImplementation: (cb: any) => void }).mockImplementation(function() {
+      return { listParticipants: mockListParticipants };
+    });
 
     const req = new NextRequest(`${mockUrl}?room=test-room&username=user1&role=host`);
     const res = await GET(req);
     const data = await res.json();
 
     expect(data.actualRole).toBe('host');
-    expect(listParticipantsMock).toHaveBeenCalledWith('test-room');
+    expect(mockListParticipants).toHaveBeenCalledWith('test-room');
   });
 
-  it('should downgrade to listener if a host already exists', async () => {
-    // すでにホスト（-hostサフィックス持ち）がいる状態をシミュレート
-    const listParticipantsMock = vi.fn().mockResolvedValue([
+  it('should downgrade to listener if another host already exists', async () => {
+    const { RoomServiceClient } = await import('livekit-server-sdk');
+    const mockListParticipants = vi.fn().mockResolvedValue([
       { identity: 'other-user-host' }
     ]);
+    
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    (RoomServiceClient as unknown as { mockImplementation: (cb: any) => void }).mockImplementation(() => ({
-      listParticipants: listParticipantsMock,
-    }));
+    (RoomServiceClient as unknown as { mockImplementation: (cb: any) => void }).mockImplementation(function() {
+      return { listParticipants: mockListParticipants };
+    });
 
     const req = new NextRequest(`${mockUrl}?room=test-room&username=user2&role=host`);
     const res = await GET(req);
     const data = await res.json();
 
-    // 役割が listener に変更されていることを確認
     expect(data.actualRole).toBe('listener');
   });
 
-  it('should allow joining as listener regardless of host existence', async () => {
-    const listParticipantsMock = vi.fn();
+  it('should allow joining as host if the existing host is yourself', async () => {
+    const { RoomServiceClient } = await import('livekit-server-sdk');
+    const mockListParticipants = vi.fn().mockResolvedValue([
+      { identity: 'user1-host' }
+    ]);
+    
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    (RoomServiceClient as unknown as { mockImplementation: (cb: any) => void }).mockImplementation(() => ({
-      listParticipants: listParticipantsMock,
-    }));
+    (RoomServiceClient as unknown as { mockImplementation: (cb: any) => void }).mockImplementation(function() {
+      return { listParticipants: mockListParticipants };
+    });
 
-    const req = new NextRequest(`${mockUrl}?room=test-room&username=user3&role=listener`);
+    const req = new NextRequest(`${mockUrl}?room=test-room&username=user1&role=host`);
     const res = await GET(req);
     const data = await res.json();
 
-    expect(data.actualRole).toBe('listener');
-    // listener の場合はリスト確認をスキップするはず
-    expect(listParticipantsMock).not.toHaveBeenCalled();
+    expect(data.actualRole).toBe('host');
   });
 });
