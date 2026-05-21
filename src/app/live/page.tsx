@@ -479,23 +479,37 @@ function LivePageContent() {
           )}
 
           {!isBroadcaster && !isAudioEnabled ? (
-            <button 
-              onClick={handleStartAudio}
-              style={{ 
-                padding: '1.5rem 3rem', 
-                borderRadius: '50px', 
-                backgroundColor: 'var(--primary)', 
-                color: 'white', 
+            <div style={{ textAlign: 'center' }}>
+              <p style={{ 
+                color: '#ff4b4b', 
+                fontSize: '0.9rem', 
                 fontWeight: 'bold', 
-                fontSize: '1.3rem',
-                border: 'none',
-                boxShadow: '0 4px 15px rgba(0,0,0,0.3)',
-                cursor: 'pointer',
-                marginBottom: '2rem'
-              }}
-            >
-              🔊 ライブを聴く
-            </button>
+                marginBottom: '1rem',
+                backgroundColor: 'rgba(255, 75, 75, 0.1)',
+                padding: '0.75rem 1.5rem',
+                borderRadius: '12px',
+                border: '1px solid rgba(255, 75, 75, 0.2)'
+              }}>
+                ⚠️ スピーカーから音声が流れます。スピーカー推奨。
+              </p>
+              <button 
+                onClick={handleStartAudio}
+                style={{ 
+                  padding: '1.5rem 3rem', 
+                  borderRadius: '50px', 
+                  backgroundColor: 'var(--primary)', 
+                  color: 'white', 
+                  fontWeight: 'bold', 
+                  fontSize: '1.3rem',
+                  border: 'none',
+                  boxShadow: '0 4px 15px rgba(0,0,0,0.3)',
+                  cursor: 'pointer',
+                  marginBottom: '2rem'
+                }}
+              >
+                🔊 ライブを聴く
+              </button>
+            </div>
           ) : (
             <>
               <div style={{ marginBottom: '1.5rem', display: 'flex', justifyContent: 'center' }}>
