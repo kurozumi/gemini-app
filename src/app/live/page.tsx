@@ -52,46 +52,51 @@ function CustomConference() {
           width: 280px !important;
           height: 280px !important;
           flex: none !important;
-          border-radius: 32px;
-          background: rgba(15, 15, 25, 0.8) !important;
-          backdrop-filter: blur(12px);
+          border-radius: 40px;
+          background: linear-gradient(135deg, rgba(255, 255, 255, 0.1), rgba(255, 255, 255, 0.05)) !important;
+          backdrop-filter: blur(20px);
           border: 1px solid rgba(255, 255, 255, 0.1) !important;
-          box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
-          transition: all 0.3s ease;
+          box-shadow: 0 20px 50px rgba(0, 0, 0, 0.4);
+          transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+          position: relative;
+          overflow: hidden;
+        }
+        .custom-conference .lk-participant-tile::before {
+          content: '';
+          position: absolute;
+          inset: 0;
+          background: radial-gradient(circle at top left, rgba(var(--primary-rgb), 0.15), transparent 70%);
+          pointer-events: none;
         }
         @media (max-height: 800px) {
           .custom-conference .lk-participant-tile {
-            width: 200px !important;
-            height: 200px !important;
-            border-radius: 24px;
+            width: 220px !important;
+            height: 220px !important;
+            border-radius: 32px;
           }
           .custom-conference .lk-grid-layout {
-            gap: 1rem;
+            gap: 1.5rem;
           }
         }
         @media (max-width: 480px) {
           .custom-conference .lk-participant-tile {
-            width: 160px !important;
-            height: 160px !important;
-            border-radius: 20px;
+            width: 180px !important;
+            height: 180px !important;
+            border-radius: 28px;
           }
         }
         .custom-conference .lk-participant-tile:hover {
-          transform: translateY(-5px);
-          border-color: var(--primary) !important;
-          box-shadow: 0 15px 40px rgba(0, 0, 0, 0.6), 0 0 15px rgba(var(--primary-rgb), 0.3);
+          transform: translateY(-10px) scale(1.02);
+          border-color: rgba(var(--primary-rgb), 0.5) !important;
+          box-shadow: 0 30px 60px rgba(0, 0, 0, 0.5), 0 0 20px rgba(var(--primary-rgb), 0.2);
         }
+        /* ユーザー名を非表示にする */
         .custom-conference .lk-participant-name {
-          font-weight: 600;
-          font-size: 0.9rem;
-          bottom: 16px;
-          left: 16px;
-          background: rgba(0, 0, 0, 0.6);
-          padding: 6px 12px;
-          border-radius: 10px;
+          display: none !important;
         }
         .custom-conference .lk-audio-visualizer {
-          opacity: 0.8;
+          opacity: 0.6;
+          filter: drop-shadow(0 0 8px var(--primary));
         }
         .lk-disconnect-button {
           background-color: #ff4b4b !important;

@@ -91,22 +91,43 @@ export default function LiveRoomList() {
           <div style={{ 
             padding: '1.25rem', 
             backgroundColor: 'var(--card-bg)', 
-            borderRadius: '16px', 
+            borderRadius: '20px', 
             border: '1px solid var(--border)',
-            transition: 'transform 0.2s',
-            cursor: 'pointer'
+            transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+            cursor: 'pointer',
+            position: 'relative',
+            overflow: 'hidden'
           }}
-          onMouseEnter={(e) => (e.currentTarget.style.transform = 'translateY(-4px)')}
-          onMouseLeave={(e) => (e.currentTarget.style.transform = 'translateY(0)')}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.transform = 'translateY(-6px)';
+            e.currentTarget.style.borderColor = 'var(--primary)';
+            e.currentTarget.style.boxShadow = '0 10px 30px rgba(0,0,0,0.3)';
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.transform = 'translateY(0)';
+            e.currentTarget.style.borderColor = 'var(--border)';
+            e.currentTarget.style.boxShadow = 'none';
+          }}
           >
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '0.75rem' }}>
-              <span style={{ fontSize: '1.5rem' }}>🎙️</span>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+              <div style={{ 
+                width: '48px', 
+                height: '48px', 
+                borderRadius: '12px', 
+                backgroundColor: 'rgba(255, 255, 255, 0.05)', 
+                display: 'flex', 
+                alignItems: 'center', 
+                justifyContent: 'center',
+                fontSize: '1.5rem'
+              }}>
+                🎙️
+              </div>
               <div style={{ flex: 1, minWidth: 0 }}>
-                <h4 style={{ margin: 0, fontSize: '1.1rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                <h4 style={{ margin: 0, fontSize: '1.1rem', fontWeight: '700', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                   {room.name}
                 </h4>
-                <p style={{ margin: 0, fontSize: '0.85rem', color: 'var(--text-muted)' }}>
-                  {room.host_name} が配信中
+                <p style={{ margin: 0, fontSize: '0.85rem', color: 'var(--text-muted)', marginTop: '2px' }}>
+                  ライブ配信中
                 </p>
               </div>
               <div style={{ 
