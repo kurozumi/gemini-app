@@ -21,7 +21,7 @@ import { Chat } from '@/components/Chat';
 
 import Logger from '@/lib/logger';
 
-function AudioOutputToggle() {
+export function AudioOutputToggle() {
   const room = useRoomContext();
   const [isSpeaker, setIsSpeaker] = useState(false); // デフォルトをイヤースピーカー（スピーカーOFF）に
   const [canSwitch, setCanSwitch] = useState(false);
