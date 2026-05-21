@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useCallback, Suspense } from 'react';
+import React, { useState, useEffect, useCallback, Suspense, useRef } from 'react';
 import { 
   LiveKitRoom, 
   RoomAudioRenderer,
@@ -172,33 +172,54 @@ function LivePageContent() {
   // ステート管理
   const [roomName, setRoomName] = useState('');
   const [isConnecting, setIsConnecting] = useState(false);
-  const [hasAutoConnected, setHasAutoConnected] = useState(false);
+  const autoConnectedRef = useRef(false);
 
   // 接続処理
-  const connectToRoom = useCallback(async (inputRoom: string, role: string) => {
-    if (!inputRoom) return;
+  const connectToRoom = useCallback(async (inputRoomName: string, role: string, existingRoomId?: string) => {
+    if (!inputRoomName && !existingRoomId) return;
     setIsConnecting(true);
     try {
       const username = generateUserId();
+      let roomId = existingRoomId;
 
-      localStorage.setItem('livekit_room_name', inputRoom);
-      Logger.info('Connecting to room', { room: inputRoom, role });
-      
-      const resp = await fetch(`/api/livekit/token?room=${encodeURIComponent(inputRoom)}&username=${username}&role=${role}`);
-      const data = await resp.json();
-
-      if (data.error) throw new Error(data.error);
-
-      if (role === 'host' && supabase) {
+      // 配信者の場合、まずSupabaseに登録してIDを取得
+      if (role === 'host' && !roomId && supabase) {
         const { data: roomData, error: roomError } = await supabase
           .from('rooms')
-          .insert([{ name: inputRoom, host_name: username }])
+          .insert([{ name: inputRoomName, host_name: username }])
           .select()
           .single();
 
         if (roomError) throw new Error(`ルームの作成に失敗しました: ${roomError.message}`);
-        setCurrentRoomId(roomData.id);
+        roomId = roomData.id;
+        setCurrentRoomId(roomId);
+        
+        // URLをユニークなID付きに更新
+        const newUrl = `${window.location.pathname}?room=${roomId}&role=host`;
+        window.history.replaceState(null, '', newUrl);
+      } else if (roomId) {
+        // IDが既にある場合（リスナーなど）、ルーム情報を取得
+        if (supabase) {
+          const { data, error } = await supabase
+            .from('rooms')
+            .select('name')
+            .eq('id', roomId)
+            .single();
+          
+          if (!error && data) {
+            setRoomName(data.name);
+          }
+        }
+        setCurrentRoomId(roomId);
       }
+
+      const roomToJoin = roomId || inputRoomName;
+      Logger.info('Connecting to room', { room: roomToJoin, role });
+      
+      const resp = await fetch(`/api/livekit/token?room=${encodeURIComponent(roomToJoin)}&username=${username}&role=${role}`);
+      const data = await resp.json();
+
+      if (data.error) throw new Error(data.error);
 
       setToken(data.token);
       setUrl(data.url);
@@ -208,27 +229,26 @@ function LivePageContent() {
       const msg = err instanceof Error ? err.message : '不明なエラーが発生しました';
       Logger.error('Connection failed', { error: msg });
       alert(`接続に失敗しました: ${msg}`);
+      // 失敗した場合はリセット
+      setToken(null);
+      setUrl(null);
     } finally {
       setIsConnecting(false);
     }
-  }, []);
+  }, [router]); // router is constant but added for consistency
 
   // URLパラメータからの自動接続と初期化
   useEffect(() => {
     const roomParam = searchParams.get('room');
     const roleParam = searchParams.get('role');
 
-    if (roomParam) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect
-      setRoomName(roomParam);
-    }
-
     // roleとroomが両方揃っている場合のみ自動接続（リスナーやリンク共有時）
-    if (roleParam && roomParam && !hasAutoConnected) {
-      setHasAutoConnected(true);
-      connectToRoom(roomParam, roleParam);
+    if (roleParam && roomParam && !autoConnectedRef.current) {
+      autoConnectedRef.current = true;
+      // roomParam は UUID として扱う
+      connectToRoom('', roleParam, roomParam);
     }
-  }, [searchParams, hasAutoConnected, connectToRoom]);
+  }, [searchParams, connectToRoom]);
 
   // クリーンアップ処理
   const cleanupRoom = useCallback((roomId: string) => {
