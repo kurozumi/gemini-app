@@ -223,7 +223,8 @@ function LivePageContent() {
 
       setToken(data.token);
       setUrl(data.url);
-      setIsBroadcaster(role === 'host');
+      // サーバー側で判定された最終的な役割（actualRole）を反映
+      setIsBroadcaster(data.actualRole === 'host');
       setIsAudioEnabled(false);
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : '不明なエラーが発生しました';
