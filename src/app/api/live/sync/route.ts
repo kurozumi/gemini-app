@@ -31,7 +31,8 @@ export async function GET() {
     if (dbError) throw dbError;
 
     // 3. LiveKitに存在しないルーム（幽霊ルーム）を特定
-    const staleRooms = dbRooms?.filter(room => !activeRoomNames.includes(room.name)) || [];
+    // LiveKitのルーム名 (r.name) は現在 UUID (Supabaseのid) になっています
+    const staleRooms = dbRooms?.filter(room => !activeRoomNames.includes(room.id)) || [];
 
     if (staleRooms.length > 0) {
       const staleIds = staleRooms.map(r => r.id);

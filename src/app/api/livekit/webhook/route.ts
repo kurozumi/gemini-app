@@ -19,16 +19,16 @@ export async function POST(req: NextRequest) {
   }
 
   if (event.event === 'room_finished' || event.event === 'participant_left') {
-    const roomName = event.room?.name;
+    const roomId = event.room?.name; // LiveKitのルーム名 = SupabaseのルームID (UUID)
     const isHost = event.participant?.identity?.endsWith('-host');
 
     // room_finished の場合、またはホストが退出した（participant_left）場合にルームを削除
-    if (roomName && (event.event === 'room_finished' || isHost)) {
+    if (roomId && (event.event === 'room_finished' || isHost)) {
       const supabase = createClient(
         process.env.NEXT_PUBLIC_SUPABASE_URL!,
         process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
       );
-      await supabase.from('rooms').delete().eq('name', roomName);
+      await supabase.from('rooms').delete().eq('id', roomId);
     }
   }
 
