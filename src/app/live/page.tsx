@@ -23,8 +23,42 @@ import Logger from '@/lib/logger';
 
 export function AudioOutputToggle() {
   const room = useRoomContext();
-  const [isSpeaker, setIsSpeaker] = useState(false); // デフォルトをイヤースピーカー（スピーカーOFF）に
+  const [isSpeaker, setIsSpeaker] = useState(false); // デフォルトはイヤースピーカー（スピーカーOFF）
   const [canSwitch, setCanSwitch] = useState(false);
+
+  // デバイスを検索して設定する共通関数
+  const applyOutput = useCallback(async (useSpeaker: boolean) => {
+    try {
+      const devices = await navigator.mediaDevices.enumerateDevices();
+      const audioOutputs = devices.filter(d => d.kind === 'audiooutput');
+      
+      if (audioOutputs.length === 0) return;
+
+      const speaker = audioOutputs.find(d => 
+        d.label.toLowerCase().includes('speaker') || 
+        d.label.includes('スピーカー') ||
+        d.label.includes('拡声')
+      );
+      const earpiece = audioOutputs.find(d => 
+        d.label.toLowerCase().includes('earpiece') || 
+        d.label.toLowerCase().includes('receiver') || 
+        d.label.toLowerCase().includes('phone') ||
+        d.label.toLowerCase().includes('handset') ||
+        d.label.includes('受話') ||
+        d.label.includes('本体')
+      );
+
+      const targetDevice = useSpeaker ? (speaker || audioOutputs[0]) : (earpiece || audioOutputs[0]);
+
+      if (targetDevice) {
+        await room.setAudioOutput(targetDevice.deviceId);
+        setIsSpeaker(useSpeaker);
+        Logger.info('Audio output applied', { mode: useSpeaker ? 'speaker' : 'earpiece', label: targetDevice.label });
+      }
+    } catch (err) {
+      Logger.error('Failed to apply audio output', { error: err });
+    }
+  }, [room]);
 
   useEffect(() => {
     const checkSupport = async () => {
@@ -35,62 +69,19 @@ export function AudioOutputToggle() {
       setCanSwitch(isSupported);
       
       if (isSupported) {
-        // 初回入室時にイヤースピーカーへの切り替えを試みる
-        try {
-          const devices = await navigator.mediaDevices.enumerateDevices();
-          const earpiece = devices.find(d => 
-            d.kind === 'audiooutput' && 
-            (d.label.toLowerCase().includes('earpiece') || 
-             d.label.toLowerCase().includes('receiver') || 
-             d.label.toLowerCase().includes('phone') ||
-             d.label.includes('受話') ||
-             d.label.includes('本体'))
-          );
-          if (earpiece) {
-            await room.setAudioOutput(earpiece.deviceId);
-            setIsSpeaker(false);
-            Logger.info('Defaulted to earpiece', { label: earpiece.label });
-          }
-        } catch (err) {
-          console.warn('Failed to set default audio output:', err);
-        }
+        // 初回入室時（マウント時）にイヤースピーカーへの切り替えを試みる
+        // 少し待ってから実行することで、ストリームの開始に合わせる
+        setTimeout(() => applyOutput(false), 1000);
       }
     };
     checkSupport();
-  }, [room]);
-
-  const toggleOutput = async () => {
-    try {
-      const devices = await navigator.mediaDevices.enumerateDevices();
-      const audioOutputs = devices.filter(d => d.kind === 'audiooutput');
-      
-      const speaker = audioOutputs.find(d => d.label.toLowerCase().includes('speaker') || d.label.includes('スピーカー'));
-      const earpiece = audioOutputs.find(d => 
-        d.label.toLowerCase().includes('earpiece') || 
-        d.label.toLowerCase().includes('receiver') || 
-        d.label.toLowerCase().includes('phone') ||
-        d.label.includes('受話') ||
-        d.label.includes('本体')
-      );
-
-      const nextMode = !isSpeaker;
-      const targetDevice = nextMode ? (speaker || audioOutputs[0]) : (earpiece || audioOutputs[0]);
-
-      if (targetDevice) {
-        await room.setAudioOutput(targetDevice.deviceId);
-        setIsSpeaker(nextMode);
-        Logger.info('Audio output switched', { mode: nextMode ? 'speaker' : 'earpiece', label: targetDevice.label });
-      }
-    } catch (err) {
-      Logger.error('Failed to switch audio output', { error: err });
-    }
-  };
+  }, [applyOutput]);
 
   if (!canSwitch) return null;
 
   return (
     <button
-      onClick={toggleOutput}
+      onClick={() => applyOutput(!isSpeaker)}
       style={{
         backgroundColor: isSpeaker ? 'var(--primary)' : 'rgba(255, 255, 255, 0.1)',
         color: 'white',
@@ -108,7 +99,7 @@ export function AudioOutputToggle() {
       }}
       title={isSpeaker ? 'イヤースピーカーに切り替え' : 'スピーカーに切り替え'}
     >
-      <span>{isSpeaker ? '📢' : '👂'}</span>
+      {isSpeaker ? '📢' : '👂'}
     </button>
   );
 }
@@ -429,8 +420,28 @@ function LivePageContent() {
       if (AudioContextClass) {
         const ctx = new AudioContextClass();
         await ctx.resume();
+        Logger.info('AudioContext resumed via user gesture');
       }
       setIsAudioEnabled(true);
+
+      // ユーザー操作の直後に、強制的に出力をイヤースピーカーに設定することを試みる
+      if (typeof navigator !== 'undefined' && navigator.mediaDevices) {
+        const devices = await navigator.mediaDevices.enumerateDevices();
+        const earpiece = devices.find(d => 
+          d.kind === 'audiooutput' && 
+          (d.label.toLowerCase().includes('earpiece') || 
+           d.label.toLowerCase().includes('receiver') || 
+           d.label.toLowerCase().includes('phone') ||
+           d.label.includes('受話'))
+        );
+        
+        // 注意: ここでは room オブジェクトに直接アクセスできないため、
+        // AudioOutputToggle 側の useEffect や自動処理に期待する部分もありますが、
+        // 可能な限り早い段階での検知を試みます。
+        if (earpiece) {
+          Logger.info('Earpiece detected during unlock', { label: earpiece.label });
+        }
+      }
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : String(err);
       Logger.error('Failed to start audio context', { error: message });
