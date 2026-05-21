@@ -5,12 +5,6 @@ import nextTs from "eslint-config-next/typescript";
 const eslintConfig = defineConfig([
   ...nextVitals,
   ...nextTs,
-  {
-    // ESLint v10 / eslint-config-next 互換性問題のワークアラウンド
-    rules: {
-      "react/display-name": "off",
-    },
-  },
   // Override default ignores of eslint-config-next.
   globalIgnores([
     // Default ignores of eslint-config-next:
