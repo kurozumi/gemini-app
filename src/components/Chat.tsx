@@ -157,6 +157,14 @@ export function ChatUI({
 export function Chat({ isOpen }: { isOpen: boolean }) {
   const { send, chatMessages } = useChat();
   
+  // デバッグ用: メッセージの受信をログ出力
+  useEffect(() => {
+    if (chatMessages.length > 0) {
+      const lastMsg = chatMessages[chatMessages.length - 1];
+      console.log('Chat message received:', lastMsg.message, 'from:', lastMsg.from?.identity);
+    }
+  }, [chatMessages]);
+  
   // チャットUIを表示（isOpenに関わらずフックは実行されるため履歴は保持される）
   if (!isOpen) return null;
 

@@ -15,7 +15,7 @@ import '@livekit/components-styles';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase/client';
 import { Track } from 'livekit-client';
-import { generateUserId } from '@/lib/utils';
+import { getPersistentUserId } from '@/lib/utils';
 import { Chat } from '@/components/Chat';
 
 import Logger from '@/lib/logger';
@@ -181,7 +181,7 @@ function LivePageContent() {
     if (!inputRoomName && !existingRoomId) return;
     setIsConnecting(true);
     try {
-      const username = generateUserId();
+      const username = getPersistentUserId();
       let roomId = existingRoomId;
 
       // 配信者の場合、まずSupabaseに登録してIDを取得
@@ -223,15 +223,20 @@ function LivePageContent() {
 
       if (data.error) throw new Error(data.error);
 
-      setToken(data.token);
-      setUrl(data.url);
-      
-      // サーバー側で判定された最終的な役割（actualRole）を反映
+      // 1. まず権限とURLをセット
       const finalIsBroadcaster = data.actualRole === 'host';
       setIsBroadcaster(finalIsBroadcaster);
       setIsAudioEnabled(false);
+      setUrl(data.url);
       
-      Logger.info('Join successful', { role: data.actualRole });
+      // 2. 最後にトークンをセットしてコンポーネントをマウント
+      setToken(data.token);
+      
+      Logger.info('Connection state established', { 
+        room: roomToJoin, 
+        actualRole: data.actualRole,
+        isBroadcaster: finalIsBroadcaster 
+      });
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : '不明なエラーが発生しました';
       Logger.error('Connection failed', { error: msg });
@@ -241,7 +246,7 @@ function LivePageContent() {
     } finally {
       setIsConnecting(false);
     }
-  }, [router]);
+  }, []);
 
   // URLパラメータからの自動接続と初期化
   useEffect(() => {
@@ -427,8 +432,24 @@ function LivePageContent() {
         token={token}
         serverUrl={url}
         onDisconnected={handleDisconnected}
-        onConnected={() => Logger.info('Successfully connected to LiveKit')}
-        onError={(error) => Logger.error('LiveKit connection error', { message: error.message })}
+        onConnected={() => {
+          Logger.info('Successfully connected to LiveKit', { isBroadcaster });
+        }}
+        onError={(error) => {
+          Logger.error('LiveKit connection error', { message: error.message });
+        }}
+        onMediaDeviceError={(e) => {
+          Logger.error('Media device error', { message: e.message });
+          if (isBroadcaster) {
+            alert('マイクの起動に失敗しました。ブラウザのマイク許可設定を確認してください。');
+          }
+        }}
+        onTrackPublished={(publication) => {
+          Logger.info('Track published', { kind: publication.kind, source: publication.source });
+        }}
+        onTrackSubscribed={(track) => {
+          Logger.info('Track subscribed', { kind: track.kind, source: track.source });
+        }}
         data-lk-theme="default"
         style={{ 
           flex: 1, 

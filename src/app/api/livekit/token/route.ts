@@ -24,17 +24,20 @@ export async function GET(req: NextRequest) {
       const roomService = new RoomServiceClient(wsUrl, apiKey, apiSecret);
       const participants = await roomService.listParticipants(room);
       
-      // すでに '-host' サフィックスを持つ参加者がいるか確認
-      const hasHost = participants.some(p => p.identity.endsWith('-host'));
+      // 自分自身（同じusernameを持つ参加者）以外のホストがいるか確認
+      const otherHost = participants.find(p => 
+        p.identity.endsWith('-host') && !p.identity.startsWith(`${username}-`)
+      );
       
-      if (hasHost) {
-        // すでにホストがいる場合は、リスナーに強制変更
-        console.log(`Room ${room} already has a host. Downgrading ${username} to listener.`);
+      if (otherHost) {
+        // 他人がすでにホストとして君臨している場合は、リスナーに強制変更
+        console.log(`Room ${room} already has another host (${otherHost.identity}). Downgrading ${username} to listener.`);
         role = 'listener';
+      } else {
+        console.log(`Room ${room}: No other host found or re-joining as self. Proceeding as host for ${username}.`);
       }
     } catch (err) {
-      // ルームが存在しない場合などはエラーになるが、その場合は最初のホストとして許可
-      console.log(`Room ${room} does not exist or other error. Proceeding as host.`);
+      console.log(`Room ${room} check failed or room doesn't exist. Proceeding as host.`);
     }
   }
   // ------------------------------------------
