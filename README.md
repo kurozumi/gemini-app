@@ -23,6 +23,8 @@
 | レスポンシブ対応 | PCからスマホ、13インチモニターまで最適化された表示 |
 | iOS対応 | 視聴前の警告メッセージ（イヤホン推奨）と手動オーディオアンロック |
 | 自動テスト (CI) | GitHub Actions による自動 Lint、Unit、E2E テスト環境 |
+| セキュリティ自動点検 | CodeQL による静的解析と Dependabot による依存関係監視 |
+| AIコードレビュー | CodeRabbit による自動コードレビューと改善提案 |
 
 ## 技術スタック
 
@@ -31,6 +33,7 @@
 - **Database / Real-time:** Supabase
 - **Testing:** Vitest, Playwright
 - **CI/CD:** GitHub Actions, Vercel
+- **Quality/Security:** CodeQL, Dependabot, CodeRabbit
 
 ---
 
