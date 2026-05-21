@@ -29,7 +29,8 @@ describe('Token API (Host Enforcement)', () => {
   it('should allow joining as host if no host exists', async () => {
     // 参加者リストが空（ホストなし）の状態をシミュレート
     const listParticipantsMock = vi.fn().mockResolvedValue([]);
-    (RoomServiceClient as any).mockImplementation(() => ({
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (RoomServiceClient as unknown as { mockImplementation: (cb: any) => void }).mockImplementation(() => ({
       listParticipants: listParticipantsMock,
     }));
 
@@ -46,7 +47,8 @@ describe('Token API (Host Enforcement)', () => {
     const listParticipantsMock = vi.fn().mockResolvedValue([
       { identity: 'other-user-host' }
     ]);
-    (RoomServiceClient as any).mockImplementation(() => ({
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (RoomServiceClient as unknown as { mockImplementation: (cb: any) => void }).mockImplementation(() => ({
       listParticipants: listParticipantsMock,
     }));
 
@@ -60,7 +62,8 @@ describe('Token API (Host Enforcement)', () => {
 
   it('should allow joining as listener regardless of host existence', async () => {
     const listParticipantsMock = vi.fn();
-    (RoomServiceClient as any).mockImplementation(() => ({
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (RoomServiceClient as unknown as { mockImplementation: (cb: any) => void }).mockImplementation(() => ({
       listParticipants: listParticipantsMock,
     }));
 
