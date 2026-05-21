@@ -1,29 +1,23 @@
 import { describe, it, expect, vi } from 'vitest';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen } from '@testing-library/react';
 import React from 'react';
-import { Chat } from './page';
+import { ChatUI } from '@/components/Chat';
 
-// LiveKit hooks をモック化
-vi.mock('@livekit/components-react', () => ({
-  useChat: () => ({
-    send: vi.fn(),
-    chatMessages: [
-      { message: 'Hello from listener', from: { isLocal: false } },
-      { message: 'Hi from me', from: { isLocal: true } },
-    ],
-  }),
-}));
+describe('ChatUI Component', () => {
+  const mockMessages = [
+    { message: 'Hello from listener', from: { isLocal: false, identity: 'user-1-listener' }, timestamp: Date.now() },
+    { message: 'Hi from me', from: { isLocal: true, identity: 'user-2-host' }, timestamp: Date.now() },
+  ];
 
-describe('Chat Component', () => {
   it('should display messages from others and self', () => {
-    render(<Chat />);
+    render(<ChatUI messages={mockMessages} onSendMessage={vi.fn()} />);
     
     expect(screen.getByText('Hello from listener')).toBeDefined();
     expect(screen.getByText('Hi from me')).toBeDefined();
   });
 
   it('should have an input field and send button', () => {
-    render(<Chat />);
+    render(<ChatUI messages={[]} onSendMessage={vi.fn()} />);
     
     expect(screen.getByPlaceholderText('メッセージを送る...')).toBeDefined();
     expect(screen.getByRole('button')).toBeDefined();

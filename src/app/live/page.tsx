@@ -9,152 +9,16 @@ import {
   useTracks,
   DisconnectButton,
   TrackToggle,
-  useParticipants,
-  useChat
+  useParticipants
 } from '@livekit/components-react';
 import '@livekit/components-styles';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase/client';
 import { Track } from 'livekit-client';
 import { generateUserId } from '@/lib/utils';
+import { Chat } from '@/components/Chat';
 
 import Logger from '@/lib/logger';
-
-export function Chat() {
-  const { send, chatMessages } = useChat();
-  const [message, setMessage] = useState('');
-  const scrollRef = useRef<HTMLDivElement>(null);
-
-  // メッセージが追加されたら最下部へスクロール
-  useEffect(() => {
-    if (scrollRef.current) {
-      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
-    }
-  }, [chatMessages]);
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (message.trim() && send) {
-      await send(message);
-      setMessage('');
-    }
-  };
-
-  return (
-    <div className="chat-container">
-      <div className="chat-messages" ref={scrollRef}>
-        {chatMessages.length === 0 ? (
-          <div className="chat-empty">メッセージはまだありません</div>
-        ) : (
-          chatMessages.map((msg, i) => (
-            <div key={i} className={`chat-message ${msg.from?.isLocal ? 'is-me' : ''}`}>
-              <div className="message-content">{msg.message}</div>
-            </div>
-          ))
-        )}
-      </div>
-      <form onSubmit={handleSubmit} className="chat-input-form">
-        <input
-          value={message}
-          onChange={(e) => setMessage(e.target.value)}
-          placeholder="メッセージを送る..."
-          className="chat-input"
-        />
-        <button type="submit" className="chat-send-button" disabled={!message.trim()}>
-          🚀
-        </button>
-      </form>
-
-      <style jsx>{`
-        .chat-container {
-          width: 100%;
-          max-width: 400px;
-          height: 350px;
-          background: rgba(255, 255, 255, 0.05);
-          backdrop-filter: blur(10px);
-          border-radius: 24px;
-          border: 1px solid rgba(255, 255, 255, 0.1);
-          display: flex;
-          flex-direction: column;
-          overflow: hidden;
-          margin-top: 2rem;
-          box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
-        }
-        .chat-messages {
-          flex: 1;
-          overflow-y: auto;
-          padding: 1rem;
-          display: flex;
-          flex-direction: column;
-          gap: 0.75rem;
-          scrollbar-width: thin;
-        }
-        .chat-empty {
-          text-align: center;
-          color: var(--text-muted);
-          font-size: 0.85rem;
-          margin-top: 4rem;
-        }
-        .chat-message {
-          max-width: 85%;
-          align-self: flex-start;
-        }
-        .chat-message.is-me {
-          align-self: flex-end;
-        }
-        .message-content {
-          padding: 0.6rem 1rem;
-          background: rgba(255, 255, 255, 0.1);
-          border-radius: 16px;
-          border-bottom-left-radius: 4px;
-          font-size: 0.9rem;
-          line-height: 1.4;
-          color: white;
-          word-break: break-all;
-        }
-        .is-me .message-content {
-          background: var(--primary);
-          border-radius: 16px;
-          border-bottom-right-radius: 4px;
-          border-bottom-left-radius: 16px;
-        }
-        .chat-input-form {
-          padding: 0.75rem;
-          background: rgba(0, 0, 0, 0.2);
-          display: flex;
-          gap: 0.5rem;
-        }
-        .chat-input {
-          flex: 1;
-          background: rgba(255, 255, 255, 0.1);
-          border: none;
-          border-radius: 12px;
-          padding: 0.6rem 1rem;
-          color: white;
-          font-size: 0.9rem;
-          outline: none;
-        }
-        .chat-input:focus {
-          background: rgba(255, 255, 255, 0.15);
-        }
-        .chat-send-button {
-          background: none;
-          border: none;
-          font-size: 1.2rem;
-          cursor: pointer;
-          transition: transform 0.2s;
-        }
-        .chat-send-button:disabled {
-          opacity: 0.3;
-          cursor: not-allowed;
-        }
-        .chat-send-button:hover:not(:disabled) {
-          transform: scale(1.1);
-        }
-      `}</style>
-    </div>
-  );
-}
 
 function CustomConference() {
   const tracks = useTracks([
@@ -361,14 +225,17 @@ function LivePageContent() {
 
       setToken(data.token);
       setUrl(data.url);
+      
       // サーバー側で判定された最終的な役割（actualRole）を反映
-      setIsBroadcaster(data.actualRole === 'host');
+      const finalIsBroadcaster = data.actualRole === 'host';
+      setIsBroadcaster(finalIsBroadcaster);
       setIsAudioEnabled(false);
+      
+      Logger.info('Join successful', { role: data.actualRole });
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : '不明なエラーが発生しました';
       Logger.error('Connection failed', { error: msg });
       alert(`接続に失敗しました: ${msg}`);
-      // 失敗した場合はリセット
       setToken(null);
       setUrl(null);
     } finally {
@@ -381,10 +248,8 @@ function LivePageContent() {
     const roomParam = searchParams.get('room');
     const roleParam = searchParams.get('role');
 
-    // roleとroomが両方揃っている場合のみ自動接続（リスナーやリンク共有時）
     if (roleParam && roomParam && !autoConnectedRef.current) {
       autoConnectedRef.current = true;
-      // roomParam は UUID として扱う
       connectToRoom('', roleParam, roomParam);
     }
   }, [searchParams, connectToRoom]);
@@ -435,12 +300,11 @@ function LivePageContent() {
     e.preventDefault();
     const formData = new FormData(e.currentTarget);
     const inputRoom = formData.get('room') as string;
-    const role = searchParams.get('role') || 'host'; // デフォルトは配信者
+    const role = searchParams.get('role') || 'host';
     connectToRoom(inputRoom, role);
   };
 
   const handleShare = async () => {
-    // 共有用URLの生成（常にリスナー用として生成）
     const urlObj = new URL(window.location.href);
     urlObj.searchParams.set('role', 'listener');
     if (currentRoomId) {
@@ -479,7 +343,6 @@ function LivePageContent() {
     const isHostInit = searchParams.get('role') === 'host' && !searchParams.get('room');
     const isAutoJoining = searchParams.get('room') && searchParams.get('role');
 
-    // 自動接続中（リスナー等）はローディングを表示
     if (isAutoJoining || isConnecting) {
       return (
         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '60vh' }}>
@@ -547,8 +410,6 @@ function LivePageContent() {
                 boxShadow: '0 4px 15px rgba(0,0,0,0.2)',
                 transition: 'transform 0.1s, opacity 0.2s'
               }}
-              onMouseDown={(e) => !isConnecting && roomName && (e.currentTarget.style.transform = 'scale(0.98)')}
-              onMouseUp={(e) => !isConnecting && roomName && (e.currentTarget.style.transform = 'scale(1)')}
             >
               {isConnecting ? '接続中...' : (isHostInit ? '配信を開始する' : 'ライブに参加する')}
             </button>
@@ -621,7 +482,8 @@ function LivePageContent() {
               <CustomConference />
               <RoomAudioRenderer />
 
-              {isChatOpen && <Chat />}
+              {/* チャットロジックを常にバックグラウンドで動作させ、表示のみ制御 */}
+              <Chat isOpen={isChatOpen} />
               
               <div className="live-controls" style={{ 
                 marginTop: '2rem', 
@@ -673,8 +535,6 @@ function LivePageContent() {
                     gap: '0.5rem',
                     transition: 'all 0.2s'
                   }}
-                  onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.2)')}
-                  onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.1)')}
                 >
                   <span>{isCopied ? 'コピーしました！' : '🔗 共有する'}</span>
                 </button>
