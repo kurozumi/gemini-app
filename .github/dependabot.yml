@@ -1,0 +1,14 @@
+version: 2
+updates:
+  # package.json (npm) の依存関係をチェック
+  - package-ecosystem: "npm"
+    directory: "/"
+    schedule:
+      interval: "daily"
+    open-pull-requests-limit: 10
+
+  # GitHub Actions のアクションの更新をチェック
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
