@@ -40,7 +40,7 @@ jobs:
         LIVEKIT_API_KEY: ${{ secrets.LIVEKIT_API_KEY || 'placeholder' }}
         LIVEKIT_API_SECRET: ${{ secrets.LIVEKIT_API_SECRET || 'placeholder' }}
       
-    - uses: actions/upload-artifact@v4
+    - uses: actions/upload-artifact@v7
       if: always()
       with:
         name: playwright-report
