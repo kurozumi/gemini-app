@@ -36,6 +36,6 @@
     "eslint-config-next": "16.2.6",
     "jsdom": "^27.0.1",
     "typescript": "^6",
-    "vitest": "^3.2.4"
+    "vitest": "^4.1.7"
   }
 }
