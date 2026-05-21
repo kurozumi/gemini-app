@@ -1,0 +1,50 @@
+name: "CodeQL Analysis"
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+  schedule:
+    - cron: '20 18 * * 3' # 毎週水曜日 18:20 (UTC) に定期スキャン
+
+jobs:
+  analyze:
+    name: Analyze
+    runs-on: "ubuntu-latest"
+    timeout-minutes: 360
+    permissions:
+      # 全てのスキャンの読み取り/書き込み権限が必要
+      security-events: write
+      # リポジトリをチェックアウトするために必要
+      contents: read
+      # プルリクエストにコメントを付けるために必要（オプション）
+      actions: read
+
+    strategy:
+      fail-fast: false
+      matrix:
+        # スキャン対象の言語を指定
+        language: [ 'javascript-typescript' ]
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    # CodeQL ツールを初期化
+    - name: Initialize CodeQL
+      uses: github/codeql-action/init@v3
+      with:
+        languages: ${{ matrix.language }}
+        # 必要に応じて特定のクエリパックを追加可能
+        # queries: security-extended,security-and-quality
+
+    # 自動ビルド（JavaScript/TypeScript の場合は不要な場合が多いですが、依存関係の解決に役立ちます）
+    - name: Autobuild
+      uses: github/codeql-action/autobuild@v3
+
+    # 解析の実行
+    - name: Perform CodeQL Analysis
+      uses: github/codeql-action/analyze@v3
+      with:
+        category: "/language:${{matrix.language}}"
