@@ -17,6 +17,7 @@ import { supabase } from '@/lib/supabase/client';
 import { Track } from 'livekit-client';
 import { getPersistentUserId } from '@/lib/utils';
 import { Chat } from '@/components/Chat';
+import { useMaintenanceMode } from '@/lib/hooks/useMaintenanceMode';
 
 import Logger from '@/lib/logger';
 
@@ -163,6 +164,7 @@ function AudienceCount() {
 function LivePageContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
+  const { isMaintenance, loading: maintenanceLoading } = useMaintenanceMode();
   const [token, setToken] = useState<string | null>(null);
   const [url, setUrl] = useState<string | null>(null);
   const [isBroadcaster, setIsBroadcaster] = useState(false);
@@ -241,6 +243,7 @@ function LivePageContent() {
       const msg = err instanceof Error ? err.message : '不明なエラーが発生しました';
       Logger.error('Connection failed', { error: msg });
       alert(`接続に失敗しました: ${msg}`);
+      // 失敗した場合はリセット
       setToken(null);
       setUrl(null);
     } finally {
@@ -253,8 +256,10 @@ function LivePageContent() {
     const roomParam = searchParams.get('room');
     const roleParam = searchParams.get('role');
 
+    // roleとroomが両方揃っている場合のみ自動接続（リスナーやリンク共有時）
     if (roleParam && roomParam && !autoConnectedRef.current) {
       autoConnectedRef.current = true;
+      // roomParam は UUID として扱う
       connectToRoom('', roleParam, roomParam);
     }
   }, [searchParams, connectToRoom]);
@@ -305,7 +310,7 @@ function LivePageContent() {
     e.preventDefault();
     const formData = new FormData(e.currentTarget);
     const inputRoom = formData.get('room') as string;
-    const role = searchParams.get('role') || 'host';
+    const role = searchParams.get('role') || 'host'; // デフォルトは配信者
     connectToRoom(inputRoom, role);
   };
 
@@ -346,10 +351,30 @@ function LivePageContent() {
     }
   };
 
+  // メンテナンスモード中の表示
+  if (!maintenanceLoading && isMaintenance) {
+    return (
+      <div style={{ padding: '4rem 0', textAlign: 'center' }}>
+        <div style={{ fontSize: '3.5rem', marginBottom: '1.5rem' }}>⚠️</div>
+        <h2 style={{ fontSize: '1.8rem', fontWeight: 'bold', marginBottom: '1rem' }}>メンテナンス中</h2>
+        <p style={{ color: 'var(--text-muted)', marginBottom: '2rem' }}>
+          現在、利用量制限またはメンテナンスのため、ライブ機能を利用できません。
+        </p>
+        <button 
+          onClick={() => router.push('/')}
+          style={{ padding: '0.8rem 2rem', borderRadius: '50px', backgroundColor: 'var(--primary)', color: 'white', border: 'none', cursor: 'pointer', fontWeight: 'bold' }}
+        >
+          ホームに戻る
+        </button>
+      </div>
+    );
+  }
+
   if (!token || !url) {
     const isHostInit = searchParams.get('role') === 'host' && !searchParams.get('room');
     const isAutoJoining = searchParams.get('room') && searchParams.get('role');
 
+    // 自動接続中（リスナー等）はローディングを表示
     if (isAutoJoining || isConnecting) {
       return (
         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '60vh' }}>
