@@ -490,7 +490,7 @@ function LivePageContent() {
                 borderRadius: '12px',
                 border: '1px solid rgba(255, 75, 75, 0.2)'
               }}>
-                ⚠️ スピーカーから音声が流れます。スピーカー推奨。
+                ⚠️ スピーカーから音声が流れます。<br />イヤホン推奨
               </p>
               <button 
                 onClick={handleStartAudio}
