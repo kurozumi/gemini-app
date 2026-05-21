@@ -8,15 +8,16 @@ export async function GET() {
   const livekitUrl = process.env.NEXT_PUBLIC_LIVEKIT_URL;
 
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  // サーバーサイドなので、RLSを回避できる Service Role Key を優先的に使用する
+  const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
-  if (!apiKey || !apiSecret || !livekitUrl || !supabaseUrl || !supabaseAnonKey) {
+  if (!apiKey || !apiSecret || !livekitUrl || !supabaseUrl || !supabaseKey) {
     return NextResponse.json({ error: 'Environment variables are missing' }, { status: 500 });
   }
 
   // LiveKit RoomService を初期化
   const roomService = new RoomServiceClient(livekitUrl, apiKey, apiSecret);
-  const supabase = createClient(supabaseUrl, supabaseAnonKey);
+  const supabase = createClient(supabaseUrl, supabaseKey);
 
   try {
     // 1. LiveKitから現在アクティブなルーム一覧を取得

@@ -75,7 +75,7 @@
 
 ### 3. 環境変数の設定 (Vercel & GitHub Actions)
 
-Vercelのプロジェクト設定、およびGitHubの **Settings > Secrets and variables > Actions** に以下の 5 つを登録します。
+Vercelのプロジェクト設定、およびGitHubの **Settings > Secrets and variables > Actions** に以下の 6 つを登録します。
 
 | Key | Value (例) |
 | :--- | :--- |
@@ -84,8 +84,11 @@ Vercelのプロジェクト設定、およびGitHubの **Settings > Secrets and 
 | `NEXT_PUBLIC_LIVEKIT_URL` | `wss://your-project.livekit.cloud` |
 | `NEXT_PUBLIC_SUPABASE_URL` | `https://your-project.supabase.co` |
 | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | (Supabase anon key) |
+| `SUPABASE_SERVICE_ROLE_KEY` | (Supabase service role key) |
 
-> **重要:** GitHub Secrets に登録する際の `NEXT_PUBLIC_SUPABASE_URL` は、末尾の `/rest/v1/` を含めないように注意してください。
+> **重要:**
+> - `SUPABASE_SERVICE_ROLE_KEY` はサーバーサイドでのみ使用され、RLS（セキュリティ制限）を回避してルームのクリーンアップ等を行うために必要です。
+> - GitHub Secrets に登録する際の `NEXT_PUBLIC_SUPABASE_URL` は、末尾の `/rest/v1/` を含めないように注意してください。
 
 ### 4. LiveKit Webhook の設定（ルーム自動クリーンアップ）
 

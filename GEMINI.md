@@ -25,11 +25,12 @@
 ### 2. Supabase (配信掲示板/リアルタイム管理)
 - `NEXT_PUBLIC_SUPABASE_URL`: プロジェクトURL
 - `NEXT_PUBLIC_SUPABASE_ANON_KEY`: Anon Key
-- **テーブル設定**: `rooms` テーブルの作成、リアルタイム有効化、匿名アクセス許可が必要。
+- `SUPABASE_SERVICE_ROLE_KEY`: Service Role Key (サーバーサイド用・RLS回避用)
+- **テーブル設定**: `rooms`, `app_config` テーブルの作成と RLS の有効化が必要。
 
 ## 重要な仕様の履歴
 - **セッション管理**: ID衝突防止のため `identity` に `-host`/`-listener` を付加。
 - **ルーム自動削除**: `fetch keepalive`、`pagehide` イベント、LiveKit Webhook、およびトップページ表示時の「実態同期API」による3段構えのクリーンアップ。
-- **UI/UX**: ガラスモーフィズムを採用した中央寄せデザイン。共有ボタン（Web Share API対応）の搭載。
+- **セキュリティ (RLS)**: 匿名ユーザーには「ルームの作成・閲覧」のみを許可。ルームの削除・同期はサーバーサイドで `service_role` キーを使用して安全に実行。
 - **配信フロー**: 「今すぐ配信を始める」→ ルーム名入力 → 自動的に配信開始。
 - **ビルド設定**: `next.config.ts` は型競合回避のため `next.config.js` に変更済み。ビルド時の型チェックは CI で保証。
