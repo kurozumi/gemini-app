@@ -8,7 +8,8 @@ import {
   ParticipantTile,
   useTracks,
   DisconnectButton,
-  TrackToggle
+  TrackToggle,
+  useParticipants
 } from '@livekit/components-react';
 import '@livekit/components-styles';
 import { useSearchParams, useRouter } from 'next/navigation';
@@ -18,15 +19,13 @@ import { generateUserId } from '@/lib/utils';
 
 import Logger from '@/lib/logger';
 
-function CustomConference({ isBroadcaster }: { isBroadcaster: boolean }) {
+function CustomConference() {
   const tracks = useTracks([
     { source: Track.Source.Microphone, withPlaceholder: true },
   ]);
 
-  // リスナーの場合はホストのトラックのみを表示
-  const filteredTracks = isBroadcaster 
-    ? tracks 
-    : tracks.filter(t => t.participant.identity.endsWith('-host'));
+  // 配信者（ホスト）のトラックのみを表示
+  const filteredTracks = tracks.filter(t => t.participant.identity.endsWith('-host'));
 
   return (
     <div className="custom-conference">
@@ -127,6 +126,30 @@ function CustomConference({ isBroadcaster }: { isBroadcaster: boolean }) {
           display: none !important;
         }
       `}</style>
+    </div>
+  );
+}
+
+function AudienceCount() {
+  const participants = useParticipants();
+  // ホスト（配信者）以外の参加者をリスナーとしてカウント
+  const listenerCount = participants.filter(p => !p.identity.endsWith('-host')).length;
+
+  return (
+    <div style={{ 
+      display: 'flex', 
+      alignItems: 'center', 
+      gap: '0.5rem', 
+      padding: '0.5rem 1rem', 
+      borderRadius: '50px', 
+      backgroundColor: 'rgba(255, 255, 255, 0.1)', 
+      border: '1px solid rgba(255, 255, 255, 0.1)',
+      fontSize: '0.9rem',
+      fontWeight: '600',
+      color: 'var(--text-muted)'
+    }}>
+      <span style={{ color: '#ff4b4b' }}>●</span>
+      <span>{listenerCount} 人が視聴中</span>
     </div>
   );
 }
@@ -420,7 +443,11 @@ function LivePageContent() {
             </button>
           ) : (
             <>
-              <CustomConference isBroadcaster={isBroadcaster} />
+              <div style={{ marginBottom: '1.5rem', display: 'flex', justifyContent: 'center' }}>
+                <AudienceCount />
+              </div>
+
+              <CustomConference />
               <RoomAudioRenderer />
               
               <div className="live-controls" style={{ 
