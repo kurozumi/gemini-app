@@ -20,7 +20,7 @@ import { generateUserId } from '@/lib/utils';
 
 import Logger from '@/lib/logger';
 
-function Chat() {
+export function Chat() {
   const { send, chatMessages } = useChat();
   const [message, setMessage] = useState('');
   const scrollRef = useRef<HTMLDivElement>(null);
