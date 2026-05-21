@@ -301,7 +301,14 @@ function LivePageContent() {
   };
 
   const handleShare = async () => {
-    const shareUrl = window.location.href;
+    // 共有用URLの生成（常にリスナー用として生成）
+    const urlObj = new URL(window.location.href);
+    urlObj.searchParams.set('role', 'listener');
+    if (currentRoomId) {
+      urlObj.searchParams.set('room', currentRoomId);
+    }
+    const shareUrl = urlObj.toString();
+
     if (navigator.share) {
       try {
         await navigator.share({ title: `コエトバ - ${roomName}`, url: shareUrl });
