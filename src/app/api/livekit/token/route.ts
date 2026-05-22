@@ -30,14 +30,10 @@ export async function GET(req: NextRequest) {
       );
       
       if (otherHost) {
-        // 他人がすでにホストとして君臨している場合は、リスナーに強制変更
-        console.log(`Room ${room} already has another host (${otherHost.identity}). Downgrading ${username} to listener.`);
         role = 'listener';
-      } else {
-        console.log(`Room ${room}: No other host found or re-joining as self. Proceeding as host for ${username}.`);
       }
-    } catch (err) {
-      console.log(`Room ${room} check failed or room doesn't exist. Proceeding as host.`);
+    } catch {
+      // エラー時は安全のためそのまま続行
     }
   }
   // ------------------------------------------
@@ -60,6 +56,6 @@ export async function GET(req: NextRequest) {
   return NextResponse.json({ 
     token: await at.toJwt(),
     url: wsUrl,
-    actualRole: role // 最終的な役割をクライアントに伝える
+    actualRole: role
   });
 }

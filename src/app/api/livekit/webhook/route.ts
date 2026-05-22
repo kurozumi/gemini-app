@@ -1,4 +1,4 @@
-import { WebhookReceiver } from 'livekit-server-sdk';
+import { WebhookReceiver, RoomServiceClient } from 'livekit-server-sdk';
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 
@@ -26,7 +26,20 @@ export async function POST(req: NextRequest) {
     if (roomId && (event.event === 'room_finished' || isHost)) {
       const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
       const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
+      const apiKey = process.env.LIVEKIT_API_KEY;
+      const apiSecret = process.env.LIVEKIT_API_SECRET;
+      const livekitUrl = process.env.NEXT_PUBLIC_LIVEKIT_URL;
       
+      // ホストが退出した場合、LiveKitのルームも明示的に削除してリスナーをキックする
+      if (isHost && apiKey && apiSecret && livekitUrl) {
+        try {
+          const roomService = new RoomServiceClient(livekitUrl, apiKey, apiSecret);
+          await roomService.deleteRoom(roomId);
+        } catch (lkErr) {
+          console.error('Failed to delete LiveKit room from webhook:', lkErr);
+        }
+      }
+
       const supabase = createClient(supabaseUrl, supabaseKey);
       await supabase.from('rooms').delete().eq('id', roomId);
     }
