@@ -47,17 +47,26 @@ describe('Token API (Host Enforcement)', () => {
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY = 'test-anon-key';
   });
 
-  it('should have 1 hour TTL (3600s) set on AccessToken', async () => {
+  it('should have nearly 1 hour TTL set on AccessToken and return actualTtlMs', async () => {
     const req = new NextRequest(`${mockUrl}?room=test-room&username=user1&role=host`);
-    await GET(req);
+    const res = await GET(req);
+    const data = await res.json();
 
     expect(mockAccessTokenConstructor).toHaveBeenCalledWith(
       'test-key',
       'test-secret',
       expect.objectContaining({
-        ttl: 3600,
+        ttl: expect.any(Number),
       })
     );
+    
+    // TTLは3600以下であるはず
+    const ttlCall = mockAccessTokenConstructor.mock.calls[0][2].ttl;
+    expect(ttlCall).toBeLessThanOrEqual(3600);
+    expect(ttlCall).toBeGreaterThan(3590);
+
+    expect(data.actualTtlMs).toBeDefined();
+    expect(data.actualTtlMs).toBeLessThanOrEqual(3600 * 1000);
   });
 
   it('should allow joining as host if no host exists', async () => {

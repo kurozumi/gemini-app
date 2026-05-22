@@ -245,10 +245,16 @@ function LivePageContent() {
       const roomToJoin = roomId || inputRoomName;
       Logger.info('Connecting to room', { room: roomToJoin, role });
       
+      const fetchStartTime = Date.now();
       const resp = await fetch(`/api/livekit/token?room=${encodeURIComponent(roomToJoin)}&username=${username}&role=${role}`);
       const data = await resp.json();
+      const fetchEndTime = Date.now();
 
       if (data.error) throw new Error(data.error);
+
+      // 通信遅延の補正 (RTTの半分を通信時間とみなす)
+      const rtt = fetchEndTime - fetchStartTime;
+      const latencyCorrection = Math.floor(rtt / 2);
 
       // 1. まず権限とURLをセット
       const finalIsBroadcaster = data.actualRole === 'host';
@@ -259,8 +265,8 @@ function LivePageContent() {
       // 2. 最後にトークンをセットしてコンポーネントをマウント
       setToken(data.token);
 
-      // 配信時間の監視を開始 (APIから返された正確な残り時間を使用)
-      const limitMs = (data.actualTtl || 3600) * 1000;
+      // 配信時間の監視を開始 (APIから返された正確な残り時間に遅延補正を加える)
+      const limitMs = (data.actualTtlMs || (data.actualTtl || 3600) * 1000) + latencyCorrection;
       setTimeRemaining(limitMs);
       const startTime = Date.now();
 
