@@ -2,15 +2,19 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { GET } from './route';
 import { NextRequest } from 'next/server';
 
+const { mockAccessTokenConstructor } = vi.hoisted(() => ({
+  mockAccessTokenConstructor: vi.fn().mockImplementation(function() {
+    return {
+      addGrant: vi.fn(),
+      toJwt: vi.fn().mockResolvedValue('mock-jwt-token'),
+    };
+  }),
+}));
+
 // livekit-server-sdk を完全にモック化
 vi.mock('livekit-server-sdk', () => {
   return {
-    AccessToken: vi.fn().mockImplementation(function() {
-      return {
-        addGrant: vi.fn(),
-        toJwt: vi.fn().mockResolvedValue('mock-jwt-token'),
-      };
-    }),
+    AccessToken: mockAccessTokenConstructor,
     RoomServiceClient: vi.fn().mockImplementation(function() {
       return {
         listParticipants: vi.fn().mockResolvedValue([]),
@@ -27,6 +31,19 @@ describe('Token API (Host Enforcement)', () => {
     process.env.LIVEKIT_API_KEY = 'test-key';
     process.env.LIVEKIT_API_SECRET = 'test-secret';
     process.env.NEXT_PUBLIC_LIVEKIT_URL = 'wss://test.livekit.cloud';
+  });
+
+  it('should have 1 hour TTL (3600s) set on AccessToken', async () => {
+    const req = new NextRequest(`${mockUrl}?room=test-room&username=user1&role=host`);
+    await GET(req);
+
+    expect(mockAccessTokenConstructor).toHaveBeenCalledWith(
+      'test-key',
+      'test-secret',
+      expect.objectContaining({
+        ttl: 3600,
+      })
+    );
   });
 
   it('should allow joining as host if no host exists', async () => {
