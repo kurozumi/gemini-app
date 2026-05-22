@@ -25,6 +25,7 @@ export async function GET(req: NextRequest) {
 
   // --- 配信制限時間 (TTL) の同期計算 ---
   let ttl = 3600; // デフォルト1時間
+  let remainingMs = 3600 * 1000;
   try {
     const { data: roomData, error: roomError } = await supabase
       .from('rooms')
@@ -35,10 +36,10 @@ export async function GET(req: NextRequest) {
     if (!roomError && roomData) {
       const createdAt = new Date(roomData.created_at).getTime();
       const now = Date.now();
-      const elapsedSeconds = Math.floor((now - createdAt) / 1000);
+      remainingMs = (createdAt + 3600 * 1000) - now;
       
-      // 最大1時間 (3600秒) から経過時間を引く
-      ttl = 3600 - elapsedSeconds;
+      // TTL（秒単位）の計算
+      ttl = Math.floor(remainingMs / 1000);
 
       if (ttl <= 0) {
         return NextResponse.json({ error: 'この配信は終了しました' }, { status: 403 });
@@ -89,6 +90,7 @@ export async function GET(req: NextRequest) {
     token: await at.toJwt(),
     url: wsUrl,
     actualRole: role,
-    actualTtl: ttl // クライアントに同期用の残り時間を伝える
+    actualTtl: ttl,
+    actualTtlMs: remainingMs // ミリ秒単位の正確な残り時間を伝える
   });
 }
