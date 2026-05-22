@@ -259,15 +259,17 @@ function LivePageContent() {
       // 2. 最後にトークンをセットしてコンポーネントをマウント
       setToken(data.token);
 
-      // 配信時間の監視を開始 (1時間制限)
+      // 配信時間の監視を開始 (APIから返された正確な残り時間を使用)
+      const limitMs = (data.actualTtl || 3600) * 1000;
+      setTimeRemaining(limitMs);
       const startTime = Date.now();
-      const limitMs = 3600 * 1000;
-      
+
       if (timerRef.current) clearInterval(timerRef.current);
       timerRef.current = setInterval(() => {
         const elapsed = Date.now() - startTime;
         const remaining = Math.max(0, limitMs - elapsed);
         setTimeRemaining(remaining);
+
 
         // 警告ロジック (10分前、5分前、1分前)
         const remainingMin = remaining / (60 * 1000);

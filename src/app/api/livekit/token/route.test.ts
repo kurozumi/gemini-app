@@ -23,14 +23,28 @@ vi.mock('livekit-server-sdk', () => {
   };
 });
 
+vi.mock('@supabase/supabase-js', () => ({
+  createClient: vi.fn().mockImplementation(() => ({
+    from: vi.fn().mockReturnThis(),
+    select: vi.fn().mockReturnThis(),
+    eq: vi.fn().mockReturnThis(),
+    single: vi.fn().mockResolvedValue({
+      data: { created_at: new Date().toISOString() },
+      error: null,
+    }),
+  })),
+}));
+
 describe('Token API (Host Enforcement)', () => {
   const mockUrl = 'http://localhost/api/livekit/token';
-  
+
   beforeEach(async () => {
     vi.clearAllMocks();
     process.env.LIVEKIT_API_KEY = 'test-key';
     process.env.LIVEKIT_API_SECRET = 'test-secret';
     process.env.NEXT_PUBLIC_LIVEKIT_URL = 'wss://test.livekit.cloud';
+    process.env.NEXT_PUBLIC_SUPABASE_URL = 'https://test.supabase.co';
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY = 'test-anon-key';
   });
 
   it('should have 1 hour TTL (3600s) set on AccessToken', async () => {
@@ -47,6 +61,7 @@ describe('Token API (Host Enforcement)', () => {
   });
 
   it('should allow joining as host if no host exists', async () => {
+
     const { RoomServiceClient } = await import('livekit-server-sdk');
     const mockListParticipants = vi.fn().mockResolvedValue([]);
     
