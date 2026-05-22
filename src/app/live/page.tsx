@@ -259,9 +259,9 @@ function LivePageContent() {
       // 2. 最後にトークンをセットしてコンポーネントをマウント
       setToken(data.token);
 
-      // 配信時間の監視を開始 (1時間制限)
+      // 配信時間の監視を開始 (1時間制限 -> テストのため2分に短縮)
       const startTime = Date.now();
-      const limitMs = 3600 * 1000;
+      const limitMs = 120 * 1000;
       
       if (timerRef.current) clearInterval(timerRef.current);
       timerRef.current = setInterval(() => {
