@@ -43,6 +43,7 @@ export async function GET(req: NextRequest) {
   const at = new AccessToken(apiKey, apiSecret, {
     identity: `${username}-${role}`,
     name: displayName,
+    ttl: 3600, // 1時間 (秒単位) に制限
   });
 
   at.addGrant({

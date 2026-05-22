@@ -161,6 +161,29 @@ function AudienceCount() {
   );
 }
 
+function TimeRemainingBadge({ remaining }: { remaining: number }) {
+  const minutes = Math.floor(remaining / 60000);
+  const seconds = Math.floor((remaining % 60000) / 1000);
+  const isUrgent = remaining < 300000; // 5分未満
+
+  return (
+    <div style={{ 
+      display: 'flex', 
+      alignItems: 'center', 
+      gap: '0.5rem', 
+      padding: '0.5rem 1rem', 
+      borderRadius: '50px', 
+      backgroundColor: isUrgent ? 'rgba(255, 75, 75, 0.1)' : 'rgba(255, 255, 255, 0.1)', 
+      border: `1px solid ${isUrgent ? 'rgba(255, 75, 75, 0.3)' : 'rgba(255, 255, 255, 0.1)'}`,
+      fontSize: '0.9rem',
+      fontWeight: '600',
+      color: isUrgent ? '#ff4b4b' : 'var(--text-muted)'
+    }}>
+      <span>⏱️ 残り {minutes}:{seconds.toString().padStart(2, '0')}</span>
+    </div>
+  );
+}
+
 function LivePageContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
@@ -172,11 +195,13 @@ function LivePageContent() {
   const [currentRoomId, setCurrentRoomId] = useState<string | null>(null);
   const [isCopied, setIsCopied] = useState(false);
   const [isChatOpen, setIsChatOpen] = useState(false);
+  const [timeRemaining, setTimeRemaining] = useState<number | null>(null);
 
   // ステート管理
   const [roomName, setRoomName] = useState('');
   const [isConnecting, setIsConnecting] = useState(false);
   const autoConnectedRef = useRef(false);
+  const timerRef = useRef<NodeJS.Timeout | null>(null);
 
   // 接続処理
   const connectToRoom = useCallback(async (inputRoomName: string, role: string, existingRoomId?: string) => {
@@ -233,6 +258,35 @@ function LivePageContent() {
       
       // 2. 最後にトークンをセットしてコンポーネントをマウント
       setToken(data.token);
+
+      // 配信時間の監視を開始 (1時間制限)
+      const startTime = Date.now();
+      const limitMs = 3600 * 1000;
+      
+      if (timerRef.current) clearInterval(timerRef.current);
+      timerRef.current = setInterval(() => {
+        const elapsed = Date.now() - startTime;
+        const remaining = Math.max(0, limitMs - elapsed);
+        setTimeRemaining(remaining);
+
+        // 警告ロジック (10分前、5分前、1分前)
+        const remainingMin = remaining / (60 * 1000);
+        if (remainingMin <= 1 && remainingMin > 0.98) {
+          Logger.warn('残り1分で配信が終了します');
+        } else if (remainingMin <= 5 && remainingMin > 4.98) {
+          Logger.warn('残り5分で配信が終了します');
+        } else if (remainingMin <= 10 && remainingMin > 9.98) {
+          Logger.warn('残り10分で配信が終了します');
+        }
+
+        if (remaining <= 0) {
+          if (timerRef.current) {
+            clearInterval(timerRef.current);
+            timerRef.current = null;
+          }
+          Logger.info('配信制限時間に達しました');
+        }
+      }, 1000);
       
       Logger.info('Connection state established', { 
         room: roomToJoin, 
@@ -547,8 +601,9 @@ function LivePageContent() {
             </div>
           ) : (
             <>
-              <div style={{ marginBottom: '1.5rem', display: 'flex', justifyContent: 'center' }}>
+              <div style={{ marginBottom: '1.5rem', display: 'flex', justifyContent: 'center', gap: '1rem', flexWrap: 'wrap' }}>
                 <AudienceCount />
+                {timeRemaining !== null && <TimeRemainingBadge remaining={timeRemaining} />}
               </div>
 
               <CustomConference />
