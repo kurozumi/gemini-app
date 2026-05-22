@@ -1,5 +1,6 @@
 import { AccessToken, RoomServiceClient } from 'livekit-server-sdk';
 import { NextRequest, NextResponse } from 'next/server';
+import { createClient } from '@supabase/supabase-js';
 
 export async function GET(req: NextRequest) {
   const room = req.nextUrl.searchParams.get('room');
@@ -13,10 +14,40 @@ export async function GET(req: NextRequest) {
   const apiKey = process.env.LIVEKIT_API_KEY;
   const apiSecret = process.env.LIVEKIT_API_SECRET;
   const wsUrl = process.env.NEXT_PUBLIC_LIVEKIT_URL;
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
-  if (!apiKey || !apiSecret || !wsUrl) {
+  if (!apiKey || !apiSecret || !wsUrl || !supabaseUrl || !supabaseKey) {
     return NextResponse.json({ error: 'Server misconfigured' }, { status: 500 });
   }
+
+  const supabase = createClient(supabaseUrl, supabaseKey);
+
+  // --- 配信制限時間 (TTL) の同期計算 ---
+  let ttl = 3600; // デフォルト1時間
+  try {
+    const { data: roomData, error: roomError } = await supabase
+      .from('rooms')
+      .select('created_at')
+      .eq('id', room)
+      .single();
+
+    if (!roomError && roomData) {
+      const createdAt = new Date(roomData.created_at).getTime();
+      const now = Date.now();
+      const elapsedSeconds = Math.floor((now - createdAt) / 1000);
+      
+      // 最大1時間 (3600秒) から経過時間を引く
+      ttl = 3600 - elapsedSeconds;
+
+      if (ttl <= 0) {
+        return NextResponse.json({ error: 'この配信は終了しました' }, { status: 403 });
+      }
+    }
+  } catch (err) {
+    console.error('Failed to calculate sync TTL:', err);
+  }
+  // ------------------------------------------
 
   // --- ホスト固定 (Host Enforcement) ロジック ---
   if (role === 'host') {
@@ -43,7 +74,7 @@ export async function GET(req: NextRequest) {
   const at = new AccessToken(apiKey, apiSecret, {
     identity: `${username}-${role}`,
     name: displayName,
-    ttl: 3600, // 1時間 (秒単位) に制限
+    ttl: ttl, // 同期計算された TTL を使用
   });
 
   at.addGrant({
@@ -57,6 +88,7 @@ export async function GET(req: NextRequest) {
   return NextResponse.json({ 
     token: await at.toJwt(),
     url: wsUrl,
-    actualRole: role
+    actualRole: role,
+    actualTtl: ttl // クライアントに同期用の残り時間を伝える
   });
 }
